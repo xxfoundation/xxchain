@@ -148,6 +148,9 @@ impl Contains<RuntimeCall> for BaseFilter {
 			// ChainBridge and Swap disabled at genesis
 			RuntimeCall::ChainBridge(_) | RuntimeCall::Swap(_) => false,
 
+			// Disable uniques pallet, since Nfts one should be used instead
+			RuntimeCall::Uniques(_) => false,
+
 			// System pallets
 			RuntimeCall::System(_) | RuntimeCall::Scheduler(_) | RuntimeCall::Preimage(_) |
 			// Block production and Balances
@@ -163,8 +166,7 @@ impl Contains<RuntimeCall> for BaseFilter {
 			// Misc
 			RuntimeCall::Vesting(_) | RuntimeCall::Utility(_) | RuntimeCall::Identity(_) |
 			RuntimeCall::Proxy(_) | RuntimeCall::Bounties(_) | RuntimeCall::ChildBounties(_) | RuntimeCall::Tips(_) |
-			RuntimeCall::Multisig(_) | RuntimeCall::Recovery(_) | RuntimeCall::Assets(_) | RuntimeCall::Uniques(_) |
-			RuntimeCall::Nfts(_) |
+			RuntimeCall::Multisig(_) | RuntimeCall::Recovery(_) | RuntimeCall::Assets(_) | RuntimeCall::Nfts(_) |
 			// XX Network
 			RuntimeCall::XXCmix(_) | RuntimeCall::XXCustody(_) | RuntimeCall::XXEconomics(_) |
 			RuntimeCall::XXBetanetRewards(_) | RuntimeCall::XXPublic(_)
@@ -235,7 +237,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => !matches!(
 				c,
-				RuntimeCall::Assets(..) | RuntimeCall::Uniques(..) |
+				RuntimeCall::Assets(..) | RuntimeCall::Uniques(..) | RuntimeCall::Nfts(..) |
 				RuntimeCall::Balances(..) |
 				RuntimeCall::Vesting(pallet_vesting::Call::vested_transfer { .. })
 			),
@@ -245,7 +247,10 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::Council(..) |
 				RuntimeCall::TechnicalCommittee(..) |
 				RuntimeCall::Elections(..) |
-				RuntimeCall::Treasury(..)
+				RuntimeCall::Treasury(..) |
+				RuntimeCall::Preimage(..) |
+				RuntimeCall::Bounties(_) |
+				RuntimeCall::ChildBounties(_)
 			),
 			ProxyType::Staking => matches!(c, RuntimeCall::Staking(..)),
 			ProxyType::Voting => matches!(
