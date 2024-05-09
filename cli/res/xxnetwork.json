@@ -4,9 +4,13 @@
     "chainType": "Live",
     "bootNodes": [
         "/dns/bootnode-1.xx.network/tcp/15974/p2p/12D3KooWEHCoJu1BzojgbXrvLfYwyKsGNDw5NzDKhoV1RgB91q28",
+        "/dns/bootnode-1.xx.network/tcp/443/wss/p2p/12D3KooWEHCoJu1BzojgbXrvLfYwyKsGNDw5NzDKhoV1RgB91q28",
         "/dns/bootnode-2.xx.network/tcp/15974/p2p/12D3KooWSi5xCtT1h8BbuCBa42gp1jLVv22TRdZkx8AiDN7sXC9i",
+        "/dns/bootnode-2.xx.network/tcp/443/wss/p2p/12D3KooWSi5xCtT1h8BbuCBa42gp1jLVv22TRdZkx8AiDN7sXC9i",
         "/dns/bootnode-3.xx.network/tcp/15974/p2p/12D3KooWPz81XDxwSmPm6cNJog1pC2FinZnZ3t6tUaTXSFm8pvS6",
-        "/dns/bootnode-4.xx.network/tcp/15974/p2p/12D3KooWPsy3DT5xVgpna2r4XeTTUL4cNndg6G8v6r6UQ2AHpne4"
+        "/dns/bootnode-3.xx.network/tcp/443/wss/p2p/12D3KooWPz81XDxwSmPm6cNJog1pC2FinZnZ3t6tUaTXSFm8pvS6",
+        "/dns/bootnode-4.xx.network/tcp/15974/p2p/12D3KooWPsy3DT5xVgpna2r4XeTTUL4cNndg6G8v6r6UQ2AHpne4",
+        "/dns/bootnode-4.xx.network/tcp/443/wss/p2p/12D3KooWPsy3DT5xVgpna2r4XeTTUL4cNndg6G8v6r6UQ2AHpne4"
     ],
     "telemetryEndpoints": null,
     "protocolId": "xxnet",
