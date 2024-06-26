@@ -145,9 +145,6 @@ impl Contains<RuntimeCall> for BaseFilter {
 	fn contains(call: &RuntimeCall) -> bool {
 		// These modules are all allowed to be called by transactions
 		match call {
-			// ChainBridge and Swap disabled at genesis
-			RuntimeCall::ChainBridge(_) | RuntimeCall::Swap(_) => false,
-
 			// Disable uniques pallet, since Nfts one should be used instead
 			RuntimeCall::Uniques(_) => false,
 
@@ -169,7 +166,9 @@ impl Contains<RuntimeCall> for BaseFilter {
 			RuntimeCall::Multisig(_) | RuntimeCall::Recovery(_) | RuntimeCall::Assets(_) | RuntimeCall::Nfts(_) |
 			// XX Network
 			RuntimeCall::XXCmix(_) | RuntimeCall::XXCustody(_) | RuntimeCall::XXEconomics(_) |
-			RuntimeCall::XXBetanetRewards(_) | RuntimeCall::XXPublic(_)
+			RuntimeCall::XXBetanetRewards(_) | RuntimeCall::XXPublic(_) |
+			// ChainBridge and Swap
+			RuntimeCall::ChainBridge(_) | RuntimeCall::Swap(_)
 			=> true,
 		}
 	}
