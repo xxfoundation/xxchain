@@ -86,6 +86,9 @@ use sp_runtime::generic::Era;
 
 use sp_io::hashing::sha2_256;
 
+// Bridge migration
+use migrations::bridge_adjust::BridgeAdjust;
+
 mod weights;
 
 /// Generated voter bag information.
@@ -1228,6 +1231,8 @@ pub type Migrations = (
 	// elapsed)
 	pallet_grandpa::migrations::CleanupSetIdSessionMap<Runtime>,
 	UniquesMigration,
+	// Bridge adjustment
+	BridgeAdjust<Runtime>,
 );
 
 pub struct StakingMigrationV11OldPallet;

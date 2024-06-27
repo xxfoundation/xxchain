@@ -4250,11 +4250,12 @@ dependencies = [
 name = "migrations"
 version = "0.1.0"
 dependencies = [
+ "chainbridge",
  "frame-support",
  "frame-system",
  "log",
- "pallet-vesting",
  "sp-std",
+ "xx-economics",
 ]
 
 [[package]]
@@ -11255,6 +11256,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "log",
+ "migrations",
  "node-primitives",
  "pallet-assets",
  "pallet-authority-discovery",

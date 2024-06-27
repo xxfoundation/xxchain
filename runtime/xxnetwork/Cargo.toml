@@ -106,6 +106,9 @@ xx-team-custody = {path = "../../xx-team-custody", default-features = false }
 xx-betanet-rewards = {path = "../../xx-betanet-rewards", default-features = false }
 xx-public = {path = "../../xx-public", default-features = false }
 
+# migrations
+migrations = { path = "../../migrations", default-features = false }
+
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
 
@@ -186,6 +189,7 @@ std = [
 	"pallet-child-bounties/std",
 	"pallet-nfts/std",
 	"pallet-nfts-runtime-api/std",
+	'migrations/std',
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -276,5 +280,6 @@ try-runtime = [
 	"xx-team-custody/try-runtime",
 	"xx-economics/try-runtime",
 	"xx-betanet-rewards/try-runtime",
+	'migrations/try-runtime',
 ]
 fast-runtime = ["runtime-common/fast-runtime"]
