@@ -196,6 +196,7 @@ parameter_types! {
 	pub const TermDuration: BlockNumber = 7 * DAYS;
 	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 	pub const MaxVoters: u32 = 10 * 1000;
+	pub const MaxVotesPerVoter: u32 = 16;
 	pub const MaxCandidates: u32 = 1000;
 
 	////////////////////////////////////////////
@@ -275,11 +276,16 @@ parameter_types! {
 	pub const MetadataDepositPerByte: Balance = 1 * UNITS;
 
 	///////////////////////////////////////////
-	/// Uniques constants
+	/// Uniques + NFTs constants
 	pub const CollectionDeposit: Balance = 100 * UNITS;
 	pub const ItemDeposit: Balance = 1 * UNITS;
 	pub const KeyLimit: u32 = 32;
 	pub const ValueLimit: u32 = 256;
+	pub const ApprovalsLimit: u32 = 20;
+	pub const ItemAttributesApprovalsLimit: u32 = 20;
+	pub const MaxTips: u32 = 10;
+	pub const MaxDeadlineDuration: BlockNumber = 12 * 30 * DAYS;
+	pub const MaxAttributesPerCall: u32 = 10;
 }
 
 frame_election_provider_support::generate_solution_type!(

@@ -17,29 +17,29 @@ node-primitives = { version = "0.2.0", path = "../primitives" }
 runtime-common = { version = "0.2.0", path = "../runtime/common" }
 xxnetwork-runtime = { version = "0.2.6", path = "../runtime/xxnetwork", optional=true }
 canary-runtime = { version = "0.2.0", path = "../runtime/canary", optional=true }
-sc-executor = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-core = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-keystore = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-state-machine = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-trie = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-frame-benchmarking = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-tracing = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
+sc-executor = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-core = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-keystore = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-state-machine = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-trie = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+frame-benchmarking = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-tracing = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
 
 [dev-dependencies]
 criterion = "0.3.0"
-frame-support = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-frame-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
+frame-support = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+frame-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
 node-testing = { version = "0.2.0", path = "../testing" }
-pallet-balances = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-pallet-im-online = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-pallet-timestamp = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-pallet-treasury = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-pallet-transaction-payment = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-application-crypto = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-consensus-babe = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-runtime = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-externalities = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-keyring = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
+pallet-balances = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+pallet-im-online = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+pallet-timestamp = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+pallet-treasury = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+pallet-transaction-payment = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-application-crypto = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-consensus-babe = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-runtime = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-externalities = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-keyring = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
 wat = "1.0"
 futures = "0.3.21"
 

@@ -59,24 +59,24 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: System Account (r:3 w:3)
 	// Storage: Swap SwapFee (r:1 w:0)
 	fn transfer_native() -> Weight {
-		Weight::from_ref_time(112_387_000 as u64)
+		Weight::from_parts(112_387_000, 1000)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 	// Storage: System Account (r:2 w:2)
 	fn transfer() -> Weight {
-		Weight::from_ref_time(68_909_000 as u64)
+		Weight::from_parts(68_909_000, 1000)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	// Storage: Swap SwapFee (r:0 w:1)
 	fn set_swap_fee() -> Weight {
-		Weight::from_ref_time(19_255_000 as u64)
+		Weight::from_parts(19_255_000, 1000)
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Swap FeeDestination (r:0 w:1)
 	fn set_fee_destination() -> Weight {
-		Weight::from_ref_time(19_658_000 as u64)
+		Weight::from_parts(19_658_000, 1000)
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 }
@@ -88,24 +88,24 @@ impl WeightInfo for () {
 	// Storage: System Account (r:3 w:3)
 	// Storage: Swap SwapFee (r:1 w:0)
 	fn transfer_native() -> Weight {
-		Weight::from_ref_time(112_387_000 as u64)
+		Weight::from_parts(112_387_000, 1000)
 			.saturating_add(RocksDbWeight::get().reads(6 as u64))
 			.saturating_add(RocksDbWeight::get().writes(4 as u64))
 	}
 	// Storage: System Account (r:2 w:2)
 	fn transfer() -> Weight {
-		Weight::from_ref_time(68_909_000 as u64)
+		Weight::from_parts(68_909_000, 1000)
 			.saturating_add(RocksDbWeight::get().reads(2 as u64))
 			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
 	// Storage: Swap SwapFee (r:0 w:1)
 	fn set_swap_fee() -> Weight {
-		Weight::from_ref_time(19_255_000 as u64)
+		Weight::from_parts(19_255_000, 1000)
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: Swap FeeDestination (r:0 w:1)
 	fn set_fee_destination() -> Weight {
-		Weight::from_ref_time(19_658_000 as u64)
+		Weight::from_parts(19_658_000, 1000)
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 }

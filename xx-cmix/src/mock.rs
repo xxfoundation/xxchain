@@ -28,7 +28,7 @@ use frame_support::{
         Currency, FindAuthor, Get, Imbalance, OnFinalize, OnInitialize, OnUnbalanced,
         OneSessionHandler, GenesisBuild, ConstU32,
     },
-    weights::{Weight, constants::{RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND}},
+    weights::constants::RocksDbWeight,
 };
 use frame_system::EnsureRoot;
 use pallet_staking::{ConvertCurve, Exposure, ExposureOf, StashOf, StakerStatus};
@@ -88,7 +88,7 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
+        Authorship: pallet_authorship::{Pallet, Storage},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>},
@@ -111,10 +111,6 @@ impl FindAuthor<AccountId> for Author11 {
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
-    pub BlockWeights: frame_system::limits::BlockWeights =
-        frame_system::limits::BlockWeights::simple_max(
-            Weight::from_ref_time(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2))
-        );
     pub const MaxLocks: u32 = 1024;
     pub static SessionsPerEra: SessionIndex = 3;
     pub static ExistentialDeposit: Balance = 1;
@@ -160,9 +156,6 @@ impl pallet_balances::Config for Test {
     type MaxReserves = ();
     type ReserveIdentifier = [u8; 8];
 }
-parameter_types! {
-    pub const UncleGenerations: u64 = 0;
-}
 sp_runtime::impl_opaque_keys! {
     pub struct SessionKeys {
         pub other: OtherSessionHandler,
@@ -186,8 +179,6 @@ impl pallet_session::historical::Config for Test {
 }
 impl pallet_authorship::Config for Test {
     type FindAuthor = Author11;
-    type UncleGenerations = UncleGenerations;
-    type FilterUncle = ();
     type EventHandler = pallet_staking::Pallet<Test>;
 }
 parameter_types! {
@@ -274,7 +265,7 @@ impl pallet_staking::Config for Test {
     type Reward = ();
     type SessionsPerEra = SessionsPerEra;
     type SlashDeferDuration = SlashDeferDuration;
-    type SlashCancelOrigin = frame_system::EnsureRoot<Self::AccountId>;
+    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
     type BondingDuration = BondingDuration;
     type SessionInterface = Self;
     type EraPayout = ConvertCurve<RewardCurve>;
@@ -282,7 +273,6 @@ impl pallet_staking::Config for Test {
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type ElectionProvider = onchain::OnChainExecution<OnChainSeqPhragmen>;
     type WeightInfo = ();
-    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
     type CmixHandler = xx_cmix::Module<Test>; // connect up the staking and xx pallets
     type CustodyHandler = CustodyHandlerMock;
     type GenesisElectionProvider = Self::ElectionProvider;

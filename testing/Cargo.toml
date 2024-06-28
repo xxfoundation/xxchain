@@ -10,32 +10,32 @@ repository = "https://github.com/xx-labs/xxchain/"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-sc-service = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", features = ["test-helpers", "rocksdb"] }
-sc-client-db = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", features = ["rocksdb"] }
-sc-client-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sc-consensus = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
+sc-service = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", features = ["test-helpers", "rocksdb"] }
+sc-client-db = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", features = ["rocksdb"] }
+sc-client-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sc-consensus = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
 codec = { package = "parity-scale-codec", version = "3.0.0" }
-sp-keyring = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
+sp-keyring = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
 node-executor = { version = "0.2.0", path = "../executor" }
 node-primitives = { version = "0.2.0", path = "../primitives" }
 runtime-common = { version = "0.2.0", path = "../runtime/common" }
 xxnetwork-runtime = { version = "0.2.6", path = "../runtime/xxnetwork" }
-sp-core = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-io = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-runtime = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sc-executor = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-consensus = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-frame-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-substrate-test-client = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-pallet-transaction-payment = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-timestamp = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
-sp-block-builder = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sc-block-builder = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-inherents = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
-sp-blockchain = { git = "https://github.com/xx-labs/substrate", branch = "xx-network" }
+sp-core = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-io = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-runtime = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sc-executor = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-consensus = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+frame-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+substrate-test-client = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+pallet-transaction-payment = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-timestamp = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+sp-block-builder = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sc-block-builder = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-inherents = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-blockchain = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
 log = "0.4.17"
 tempfile = "3.1.0"
-fs_extra = "1"
+fs_extra = "1.3.0"
 futures = "0.3.21"
 claims = { path = "../claims" }

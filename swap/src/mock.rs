@@ -2,7 +2,7 @@
 
 use super::*;
 
-use frame_support::{parameter_types, weights::Weight, PalletId};
+use frame_support::{parameter_types, PalletId};
 use frame_system::{self as system};
 use sp_core::hashing::blake2_128;
 use sp_core::H256;
@@ -19,7 +19,6 @@ pub use pallet_balances as balances;
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
-    pub const MaximumBlockWeight: Weight = Weight::from_ref_time(1024);
     pub const MaximumBlockLength: u32 = 2 * 1024;
     pub const AvailableBlockRatio: Perbill = Perbill::one();
     pub const MaxLocks: u32 = 100;

@@ -40,27 +40,27 @@ impl WeightInfo for TestWeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn claim() -> Weight {
-       Weight::from_ref_time(466_905_000 as u64)
+       Weight::from_parts(466_905_000, 1000)
             .saturating_add(T::DbWeight::get().reads(7 as u64))
             .saturating_add(T::DbWeight::get().writes(7 as u64))
     }
     fn mint_claim() -> Weight {
-       Weight::from_ref_time(19_003_000 as u64)
+       Weight::from_parts(19_003_000, 1000)
             .saturating_add(T::DbWeight::get().reads(1 as u64))
             .saturating_add(T::DbWeight::get().writes(4 as u64))
     }
     fn claim_attest() -> Weight {
-       Weight::from_ref_time(471_915_000 as u64)
+       Weight::from_parts(471_915_000, 1000)
             .saturating_add(T::DbWeight::get().reads(7 as u64))
             .saturating_add(T::DbWeight::get().writes(7 as u64))
     }
     fn attest() -> Weight {
-       Weight::from_ref_time(156_649_000 as u64)
+       Weight::from_parts(156_649_000, 1000)
             .saturating_add(T::DbWeight::get().reads(8 as u64))
             .saturating_add(T::DbWeight::get().writes(8 as u64))
     }
     fn move_claim() -> Weight {
-       Weight::from_ref_time(39_612_000 as u64)
+       Weight::from_parts(39_612_000, 1000)
             .saturating_add(T::DbWeight::get().reads(4 as u64))
             .saturating_add(T::DbWeight::get().writes(7 as u64))
     }

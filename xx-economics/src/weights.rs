@@ -56,22 +56,22 @@ pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: XXEconomics InflationParams (r:0 w:1)
 	fn set_inflation_params() -> Weight {
-		Weight::from_ref_time(18_743_000 as u64)
+		Weight::from_parts(18_743_000, 1000)
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: XXEconomics InterestPoints (r:0 w:1)
 	fn set_interest_points() -> Weight {
-		Weight::from_ref_time(19_173_000 as u64)
+		Weight::from_parts(19_173_000, 1000)
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: XXEconomics IdealLiquidityStake (r:0 w:1)
 	fn set_liquidity_rewards_stake() -> Weight {
-		Weight::from_ref_time(18_771_000 as u64)
+		Weight::from_parts(18_771_000, 1000)
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: XXEconomics LiquidityRewards (r:0 w:1)
 	fn set_liquidity_rewards_balance() -> Weight {
-		Weight::from_ref_time(18_888_000 as u64)
+		Weight::from_parts(18_888_000, 1000)
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 }
@@ -80,22 +80,22 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 impl WeightInfo for () {
 	// Storage: XXEconomics InflationParams (r:0 w:1)
 	fn set_inflation_params() -> Weight {
-		Weight::from_ref_time(18_743_000 as u64)
+		Weight::from_parts(18_743_000, 1000)
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: XXEconomics InterestPoints (r:0 w:1)
 	fn set_interest_points() -> Weight {
-		Weight::from_ref_time(19_173_000 as u64)
+		Weight::from_parts(19_173_000, 1000)
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: XXEconomics IdealLiquidityStake (r:0 w:1)
 	fn set_liquidity_rewards_stake() -> Weight {
-		Weight::from_ref_time(18_771_000 as u64)
+		Weight::from_parts(18_771_000, 1000)
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: XXEconomics LiquidityRewards (r:0 w:1)
 	fn set_liquidity_rewards_balance() -> Weight {
-		Weight::from_ref_time(18_888_000 as u64)
+		Weight::from_parts(18_888_000, 1000)
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 }

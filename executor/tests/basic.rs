@@ -29,7 +29,7 @@ use frame_system::{self, EventRecord, Phase, AccountInfo};
 
 use xxnetwork_runtime::{
 	Header, UncheckedExtrinsic, CheckedExtrinsic, RuntimeCall, Runtime, Balances,
-	System, TransactionPayment, RuntimeEvent,
+	System, TransactionPayment, Treasury, RuntimeEvent,
 };
 use runtime_common::constants::{time::SLOT_DURATION, currency::*};
 use node_primitives::{Balance, Hash};
@@ -393,6 +393,7 @@ fn full_native_block_import_works() {
 	});
 
 	fees = t.execute_with(|| transfer_fee(&xt()));
+	let pot = t.execute_with(|| Treasury::pot());
 
 	executor_call(&mut t, "Core_execute_block", &block2.0, true).0.unwrap();
 
@@ -406,6 +407,14 @@ fn full_native_block_import_works() {
 			179 * UNITS - fees,
 		);
 		let events = vec![
+			EventRecord {
+				phase: Phase::Initialization,
+				event: RuntimeEvent::Treasury(pallet_treasury::Event::UpdatedInactive {
+					reactivated: 0,
+					deactivated: pot,
+				}),
+				topics: vec![],
+			},
 			EventRecord {
 				phase: Phase::ApplyExtrinsic(0),
 				event: RuntimeEvent::System(frame_system::Event::ExtrinsicSuccess {

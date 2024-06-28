@@ -49,7 +49,7 @@ use xxnetwork_runtime::{
 use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::{
 	execution_extensions::{ExecutionExtensions, ExecutionStrategies},
-	BlockBackend, ExecutionStrategy,
+	ExecutionStrategy,
 };
 use sc_client_db::PruningMode;
 use sc_consensus::{BlockImport, BlockImportParams, ForkChoiceStrategy, ImportResult, ImportedAux};
@@ -60,8 +60,7 @@ use sp_consensus::BlockOrigin;
 use sp_core::{blake2_256, ed25519, sr25519, traits::SpawnNamed, ExecutionContext, Pair, Public};
 use sp_inherents::InherentData;
 use sp_runtime::{
-	generic::BlockId,
-	traits::{Block as BlockT, IdentifyAccount, Verify, Zero},
+	traits::{Block as BlockT, IdentifyAccount, Verify},
 	OpaqueExtrinsic,
 };
 
@@ -280,15 +279,10 @@ pub struct BlockContentIterator<'a> {
 
 impl<'a> BlockContentIterator<'a> {
 	fn new(content: BlockContent, keyring: &'a BenchKeyring, client: &Client) -> Self {
+		let genesis_hash = client.chain_info().genesis_hash;
 		let runtime_version = client
-			.runtime_version_at(&BlockId::number(0))
+			.runtime_version_at(genesis_hash)
 			.expect("There should be runtime version at 0");
-
-		let genesis_hash = client
-			.block_hash(Zero::zero())
-			.expect("Database error?")
-			.expect("Genesis block always exists; qed")
-			.into();
 
 		BlockContentIterator { iteration: 0, content, keyring, runtime_version, genesis_hash }
 	}
@@ -403,24 +397,34 @@ impl BenchDb {
 		let task_executor = TaskExecutor::new();
 
 		let backend = sc_service::new_db_backend(db_config).expect("Should not fail");
+		let executor = NativeElseWasmExecutor::new(
+			WasmExecutionMethod::Compiled {
+				instantiation_strategy: WasmtimeInstantiationStrategy::PoolingCopyOnWrite,
+			},
+			None,
+			8,
+			2,
+		);
+		let client_config = sc_service::ClientConfig::default();
+		let genesis_block_builder = sc_service::GenesisBlockBuilder::new(
+			&keyring.generate_genesis(),
+			!client_config.no_genesis,
+			backend.clone(),
+			executor.clone(),
+		)
+		.expect("Failed to create genesis block builder");
+
 		let client = sc_service::new_client(
 			backend.clone(),
-			NativeElseWasmExecutor::new(
-				WasmExecutionMethod::Compiled {
-					instantiation_strategy: WasmtimeInstantiationStrategy::PoolingCopyOnWrite,
-				},
-				None,
-				8,
-				2,
-			),
-			&keyring.generate_genesis(),
+			executor,
+			genesis_block_builder,
 			None,
 			None,
 			ExecutionExtensions::new(profile.into_execution_strategies(), None, None),
 			Box::new(task_executor.clone()),
 			None,
 			None,
-			Default::default(),
+			client_config,
 		)
 		.expect("Should not fail");
 
@@ -441,7 +445,7 @@ impl BenchDb {
 		client
 			.runtime_api()
 			.inherent_extrinsics_with_context(
-				&BlockId::number(0),
+				client.chain_info().genesis_hash,
 				ExecutionContext::BlockConstruction,
 				inherent_data,
 			)
@@ -685,9 +689,7 @@ impl BenchContext {
 		assert_eq!(self.client.chain_info().best_number, 0);
 
 		assert_eq!(
-			futures::executor::block_on(
-				self.client.import_block(import_params, Default::default())
-			)
+			futures::executor::block_on(self.client.import_block(import_params))
 				.expect("Failed to import block"),
 			ImportResult::Imported(ImportedAux {
 					header_only: false,

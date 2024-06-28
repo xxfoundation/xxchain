@@ -30,7 +30,7 @@ use frame_support::{
         Currency, FindAuthor, Imbalance, OnFinalize, OnInitialize, OnUnbalanced,
         OneSessionHandler, InstanceFilter, LockIdentifier, EqualPrivilegeOnly, ConstU32, ConstU128
     },
-    weights::{Weight, constants::{RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND}},
+    weights::{Weight, constants::RocksDbWeight},
     RuntimeDebug,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -91,7 +91,7 @@ frame_support::construct_runtime!(
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
         Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-        Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
+        Authorship: pallet_authorship::{Pallet, Storage},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>},
@@ -118,10 +118,6 @@ impl FindAuthor<AccountId> for Author11 {
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
-    pub BlockWeights: frame_system::limits::BlockWeights =
-        frame_system::limits::BlockWeights::simple_max(
-            Weight::from_ref_time(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2))
-        );
     pub const MaxLocks: u32 = 1024;
     pub static SessionsPerEra: SessionIndex = 3;
     pub static ExistentialDeposit: Balance = 1;
@@ -167,9 +163,6 @@ impl pallet_balances::Config for Test {
     type MaxReserves = ();
     type ReserveIdentifier = [u8; 8];
 }
-parameter_types! {
-    pub const UncleGenerations: u64 = 0;
-}
 sp_runtime::impl_opaque_keys! {
     pub struct SessionKeys {
         pub other: OtherSessionHandler,
@@ -193,8 +186,6 @@ impl pallet_session::historical::Config for Test {
 }
 impl pallet_authorship::Config for Test {
     type FindAuthor = Author11;
-    type UncleGenerations = UncleGenerations;
-    type FilterUncle = ();
     type EventHandler = pallet_staking::Pallet<Test>;
 }
 parameter_types! {
@@ -279,7 +270,7 @@ impl pallet_preimage::Config for Test {
 }
 
 parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Weight::from_ref_time(1_000_000_000_000_000);
+	pub MaximumSchedulerWeight: Weight = Weight::from_parts(1_000_000_000_000_000, 0);
 	pub const MaxScheduledPerBlock: u32 = 50;
 }
 
@@ -319,7 +310,7 @@ impl pallet_staking::Config for Test {
     type Reward = ();
     type SessionsPerEra = SessionsPerEra;
     type SlashDeferDuration = SlashDeferDuration;
-    type SlashCancelOrigin = frame_system::EnsureRoot<Self::AccountId>;
+    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
     type BondingDuration = BondingDuration;
     type SessionInterface = Self;
     type EraPayout = ConvertCurve<RewardCurve>;
@@ -327,7 +318,6 @@ impl pallet_staking::Config for Test {
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type ElectionProvider = onchain::OnChainExecution<OnChainSeqPhragmen>;
     type WeightInfo = ();
-    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
     type CmixHandler = CmixHandlerMock;
     type CustodyHandler = CustodyHandlerMock;
     type GenesisElectionProvider = Self::ElectionProvider;
@@ -446,6 +436,7 @@ impl pallet_democracy::Config for Test {
     type Preimages = ();
 	type MaxDeposits = ConstU32<100>;
 	type MaxBlacklisted = ConstU32<100>;
+	type SubmitOrigin = EnsureSigned<Self::AccountId>;
 }
 
 parameter_types! {
@@ -463,6 +454,7 @@ parameter_types! {
 	pub const DesiredMembers: u32 = 9;
 	pub const DesiredRunnersUp: u32 = 10;
     pub const MaxVoters: u32 = 10 * 1000;
+    pub const MaxVotesPerVoter: u32 = 16;
 	pub const MaxCandidates: u32 = 1000;
 	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 }
@@ -483,6 +475,7 @@ impl pallet_elections_phragmen::Config for Test {
     type DesiredRunnersUp = DesiredRunnersUp;
     type TermDuration = TermDuration;
     type MaxVoters = MaxVoters;
+    type MaxVotesPerVoter = MaxVotesPerVoter;
 	type MaxCandidates = MaxCandidates;
     type WeightInfo = ();
 }

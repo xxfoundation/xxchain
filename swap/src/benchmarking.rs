@@ -3,7 +3,7 @@
 
 use super::*;
 
-use frame_benchmarking::{benchmarks, account, impl_benchmark_test_suite};
+use frame_benchmarking::{benchmarks, account, impl_benchmark_test_suite, BenchmarkError};
 use frame_system::RawOrigin;
 use frame_support::dispatch::UnfilteredDispatchable;
 use sp_runtime::traits::Bounded;
@@ -40,7 +40,7 @@ benchmarks!{
  	transfer {
 		let amount = T::Currency::minimum_balance() * 10u32.into();
 		let dest = account_from_index::<T>(1);
-		let origin = T::BridgeOrigin::successful_origin();
+		let origin = T::BridgeOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
 
 		let call = Call::<T>::transfer {
 			to: dest,

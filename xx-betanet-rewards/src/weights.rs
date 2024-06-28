@@ -54,13 +54,13 @@ pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: XXBetanetRewards Accounts (r:1 w:1)
 	fn select_option() -> Weight {
-		Weight::from_ref_time(36_000_000 as u64)
+		Weight::from_parts(36_000_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: XXBetanetRewards Approved (r:0 w:1)
 	fn approve() -> Weight {
-		Weight::from_ref_time(24_000_000 as u64)
+		Weight::from_parts(24_000_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 }
@@ -69,13 +69,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 impl WeightInfo for () {
 	// Storage: XXBetanetRewards Accounts (r:1 w:1)
 	fn select_option() -> Weight {
-		Weight::from_ref_time(36_000_000 as u64)
+		Weight::from_parts(36_000_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: XXBetanetRewards Approved (r:0 w:1)
 	fn approve() -> Weight {
-		Weight::from_ref_time(24_000_000 as u64)
+		Weight::from_parts(24_000_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 }

@@ -25,13 +25,14 @@ use node_primitives::{AccountId, Block, Balance, Index};
 use sc_client_api::BlockBackend;
 use sc_consensus_babe::{self, SlotProportion};
 use sc_executor::{NativeElseWasmExecutor, NativeExecutionDispatch};
-use sc_network_common::{protocol::event::Event, service::NetworkEventStream};
+use sc_network::{event::Event, NetworkEventStream};
+use sc_network_common::sync::warp::WarpSyncParams;
 use sc_service::{
 	config::Configuration, error::Error as ServiceError, TaskManager,
 };
 use sp_api::{ConstructRuntimeApi, StateBackend};
 use sc_telemetry::{Telemetry, TelemetryWorker};
-use sp_runtime::traits::{Block as BlockT, BlakeTwo256};
+use sp_runtime::traits::BlakeTwo256;
 #[cfg(feature = "canary")]
 use crate::chain_spec::IdentifyVariant;
 use std::sync::Arc;
@@ -202,10 +203,7 @@ where
 						slot_duration,
 					);
 
-				let uncles =
-					sp_authorship::InherentDataProvider::<<Block as BlockT>::Header>::check_inherents();
-
-				Ok((slot, timestamp, uncles))
+				Ok((slot, timestamp))
 		},
 		&task_manager.spawn_essential_handle(),
 		config.prometheus_registry(),
@@ -325,7 +323,7 @@ where
 		Vec::default(),
 	));
 
-	let (network, system_rpc_tx, tx_handler_controller, network_starter) =
+	let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_service) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
 			config: &config,
 			client: client.clone(),
@@ -333,7 +331,7 @@ where
 			spawn_handle: task_manager.spawn_handle(),
 			import_queue,
 			block_announce_validator_builder: None,
-			warp_sync: Some(warp_sync),
+			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
 		})?;
 
 	if config.offchain_worker.enabled {
@@ -364,6 +362,7 @@ where
 			task_manager: &mut task_manager,
 			system_rpc_tx,
 			tx_handler_controller,
+			sync_service: sync_service.clone(),
 			telemetry: telemetry.as_mut(),
 		})?;
 
@@ -399,16 +398,11 @@ where
 			select_chain,
 			env: proposer,
 			block_import,
-			sync_oracle: network.clone(),
-			justification_sync_link: network.clone(),
+			sync_oracle: sync_service.clone(),
+			justification_sync_link: sync_service.clone(),
 			create_inherent_data_providers: move |parent, ()| {
 				let client_clone = client_clone.clone();
 				async move {
-					let uncles = sc_consensus_uncles::create_uncles_inherent_data_provider(
-						&*client_clone,
-						parent,
-					)?;
-
 					let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
 					let slot =
@@ -423,7 +417,7 @@ where
 							&parent,
 						)?;
 
-					Ok((slot, timestamp, uncles, storage_proof))
+					Ok((slot, timestamp, storage_proof))
 				}
 			},
 			force_authoring,
@@ -501,6 +495,7 @@ where
 			config,
 			link: grandpa_link,
 			network: network.clone(),
+			sync: Arc::new(sync_service),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: grandpa::VotingRulesBuilder::default().build(),
 			prometheus_registry,

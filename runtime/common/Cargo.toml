@@ -17,24 +17,24 @@ static_assertions = "1.1.0"
 smallvec = "1.7.0"
 
 # primitives
-sp-std = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
-sp-runtime = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
+sp-std = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+sp-runtime = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
 node-primitives = { version = "0.2.0", default-features = false, path = "../../primitives" }
-sp-staking = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
-sp-io = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
+sp-staking = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+sp-io = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
 
 # frame dependencies
-frame-support = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
-frame-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
-frame-election-provider-support = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
+frame-support = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+frame-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+frame-election-provider-support = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
 
 # pallets
-pallet-authorship = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
-pallet-balances = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
-pallet-transaction-payment = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
-pallet-treasury = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
-pallet-staking = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
-pallet-election-provider-multi-phase = { git = "https://github.com/xx-labs/substrate", branch = "xx-network", default-features = false }
+pallet-authorship = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+pallet-balances = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+pallet-transaction-payment = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+pallet-treasury = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+pallet-staking = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+pallet-election-provider-multi-phase = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
 
 [features]
 default = ["std"]

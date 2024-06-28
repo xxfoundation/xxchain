@@ -52,10 +52,10 @@ build-dev-try-runtime:
 #######################
 
 build-canary-runtime:
-	@srtool build --package canary-runtime
+	@SRTOOL_TAG="1.66.1" srtool build --package canary-runtime
 
 build-xxnetwork-runtime:
-	@srtool build --package xxnetwork-runtime
+	@SRTOOL_TAG="1.66.1" srtool build --package xxnetwork-runtime
 
 build-runtimes: build-canary-runtime build-xxnetwork-runtime
 

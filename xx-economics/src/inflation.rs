@@ -95,7 +95,7 @@ impl<B: Zero> Default for IdealInterestPoint<B> {
 /// Implement Inflation sub module functions
 impl<T: Config> Module<T> {
     /// Get the ideal interest according to block number
-    fn get_ideal_interest(block: T::BlockNumber) -> Perbill {
+    pub fn get_ideal_interest(block: T::BlockNumber) -> Perbill {
         let points = Self::interest_points();
         match points.iter().position(|p| p.block >= block) {
             // If position found, get points from index-1 and index
@@ -165,7 +165,7 @@ impl<T: Config> Module<T> {
     }
 
     /// Compute total stakeable
-    fn compute_total_stakeable(issuance: BalanceOf<T>) -> BalanceOf<T> {
+    pub fn compute_total_stakeable(issuance: BalanceOf<T>) -> BalanceOf<T> {
         let unstakeable =
             // Balance of Rewards Pool
             Self::rewards_balance()
