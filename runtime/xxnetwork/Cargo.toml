@@ -90,6 +90,9 @@ pallet-child-bounties = { workspace = true }
 pallet-nfts = { workspace = true }
 pallet-nfts-runtime-api = { workspace = true }
 
+# smart contracts
+pallet-revive = { workspace = true }
+
 # chainbridge
 chainbridge = { workspace = true }
 # swap
@@ -189,6 +192,7 @@ std = [
 	"pallet-child-bounties/std",
 	"pallet-nfts/std",
 	"pallet-nfts-runtime-api/std",
+	"pallet-revive/std",
 	"migrations/std",
 ]
 runtime-benchmarks = [
@@ -226,6 +230,7 @@ runtime-benchmarks = [
 	"pallet-utility/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-nfts/runtime-benchmarks",
+	"pallet-revive/runtime-benchmarks",
 	"claims/runtime-benchmarks",
 	"swap/runtime-benchmarks",
 	"xx-cmix/runtime-benchmarks",
@@ -271,6 +276,7 @@ try-runtime = [
 	"pallet-uniques/try-runtime",
 	"pallet-vesting/try-runtime",
 	"pallet-nfts/try-runtime",
+	"pallet-revive/try-runtime",
 	"chainbridge/try-runtime",
 	"claims/try-runtime",
 	"swap/try-runtime",

@@ -175,6 +175,9 @@ pallet-uniques = { git = "https://github.com/paritytech/polkadot-sdk", tag = "po
 pallet-utility = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2509-2", default-features = false }
 pallet-vesting = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2509-2", default-features = false }
 
+# Smart Contracts
+pallet-revive = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2509-2", default-features = false }
+
 # Substrate Client (sc-*)
 sc-authority-discovery = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2509-2" }
 sc-basic-authorship = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2509-2" }

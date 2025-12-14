@@ -25,6 +25,7 @@
 
 extern crate alloc;
 use alloc::vec::Vec;
+use alloc::vec;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
@@ -38,17 +39,21 @@ use sp_staking::currency_to_vote::U128CurrencyToVote;
 use frame_system::{EnsureRoot, EnsureSigned, EnsureRootWithSuccess, EnsureWithSuccess};
 use frame_support::{
 	traits::{
-		ConstU32,
+		ConstBool, ConstU32, ConstU64,
 		InstanceFilter, Contains,
 		EitherOf, EitherOfDiverse, AsEnsureOriginWithArg,
 		tokens::nonfungibles_v2::Inspect,
 	},
 	PalletId,
 };
+use sp_runtime::Perbill;
 use codec::{Encode, Decode, DecodeWithMemTracking, MaxEncodedLen};
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use pallet_revive::evm::runtime::EthExtra;
 pub use node_primitives::{AccountId, Signature};
 use node_primitives::{Balance, BlockNumber, Hash, Index, Moment};
+/// Nonce type alias for compatibility with pallet-revive macros.
+pub type Nonce = Index;
 use sp_api::impl_runtime_apis;
 use sp_runtime::{
 	ApplyExtrinsicResult, impl_opaque_keys, generic,
@@ -177,7 +182,9 @@ impl Contains<RuntimeCall> for BaseFilter {
 			RuntimeCall::XXPublic(_) | RuntimeCall::XXStakingExtension(_) |
 			RuntimeCall::XXCustody(_) |
 			// ChainBridge and Swap
-			RuntimeCall::ChainBridge(_) | RuntimeCall::Swap(_)
+			RuntimeCall::ChainBridge(_) | RuntimeCall::Swap(_) |
+			// Smart Contracts
+			RuntimeCall::Revive(_)
 			=> true,
 		}
 	}
@@ -1275,6 +1282,50 @@ impl swap::Config for Runtime {
 	type WeightInfo = weights::swap::WeightInfo<Runtime>;
 }
 
+// =============================================================================
+// Smart Contracts - pallet-revive
+// =============================================================================
+
+parameter_types! {
+	/// Storage deposit per byte for contracts
+	pub const ContractDepositPerByte: Balance = deposit(0, 1);
+	/// Storage deposit per storage item
+	pub const ContractDepositPerItem: Balance = deposit(1, 0);
+	/// Default limit for storage deposits during contract deployment
+	pub const DefaultDepositLimit: Balance = deposit(1024, 1024 * 1024);
+	/// Percentage of deposit locked for code hash protection
+	pub const CodeHashLockupDepositPercent: Perbill = Perbill::from_percent(30);
+}
+
+// NOTE: pallet-revive uses Precompiles for custom functionality, not a CallFilter.
+// Smart contracts are sandboxed and cannot call runtime extrinsics directly.
+// They can only interact with other contracts and use precompiles.
+
+impl pallet_revive::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type Time = Timestamp;
+	type Currency = Balances;
+	type WeightPrice = pallet_transaction_payment::Pallet<Runtime>;
+	type WeightInfo = pallet_revive::weights::SubstrateWeight<Runtime>;
+	type Precompiles = ();
+	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
+	type DepositPerByte = ContractDepositPerByte;
+	type DepositPerItem = ContractDepositPerItem;
+	type CodeHashLockupDepositPercent = CodeHashLockupDepositPercent;
+	type AddressMapper = pallet_revive::AccountId32Mapper<Self>;
+	type UnsafeUnstableInterface = ConstBool<false>;
+	type UploadOrigin = EnsureSigned<AccountId>;
+	type InstantiateOrigin = EnsureSigned<AccountId>;
+	type RuntimeMemory = ConstU32<{ 128 * 1024 * 1024 }>;
+	type PVFMemory = ConstU32<{ 512 * 1024 * 1024 }>;
+	type ChainId = ConstU64<55>;
+	type NativeToEthRatio = ConstU32<1_000_000_000>;
+	type AllowEVMBytecode = ConstBool<true>;
+	type EthGasEncoder = ();
+}
+
 impl pallet_multisig::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
@@ -1443,6 +1494,9 @@ construct_runtime!(
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 39,
 		ChildBounties: pallet_child_bounties = 40,
 		Nfts: pallet_nfts = 42,
+
+		// Smart Contracts
+		Revive: pallet_revive = 44,
 	}
 );
 
@@ -1473,8 +1527,33 @@ pub type SignedExtra = (
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	claims::PrevalidateAttests<Runtime>,
 );
+
+/// Default extensions applied to Ethereum transactions.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct EthExtraImpl;
+
+impl EthExtra for EthExtraImpl {
+	type Config = Runtime;
+	type Extension = SignedExtra;
+
+	fn get_eth_extension(nonce: Index, tip: Balance) -> Self::Extension {
+		(
+			frame_system::CheckNonZeroSender::<Runtime>::new(),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckEra::<Runtime>::from(Era::Immortal),
+			frame_system::CheckNonce::<Runtime>::from(nonce),
+			frame_system::CheckWeight::<Runtime>::new(),
+			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			claims::PrevalidateAttests::<Runtime>::new(),
+		)
+	}
+}
+
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+/// Uses pallet_revive's UncheckedExtrinsic for Ethereum transaction support.
+pub type UncheckedExtrinsic = pallet_revive::evm::runtime::UncheckedExtrinsic<Address, Signature, EthExtraImpl>;
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
 /// Extrinsic type that has already been checked.
@@ -1552,6 +1631,7 @@ mod benches {
 		[pallet_treasury, Treasury]
 		[pallet_uniques, Uniques]
 		[pallet_nfts, Nfts]
+		[pallet_revive, Revive]
 		[pallet_utility, Utility]
 		[pallet_vesting, Vesting]
 		// xx network
@@ -1564,7 +1644,11 @@ mod benches {
 	);
 }
 
-impl_runtime_apis! {
+pallet_revive::impl_runtime_apis_plus_revive! {
+	Runtime,
+	Executive,
+	EthExtraImpl,
+
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
 			VERSION
