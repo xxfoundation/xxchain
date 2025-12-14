@@ -6,52 +6,49 @@ edition = "2021"
 
 [dependencies]
 # third-party dependencies
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = [
-	"derive",
-	"max-encoded-len",
-] }
-scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
-serde = { version = "1.0.126", optional = true }
+codec = { workspace = true }
+scale-info = { workspace = true }
+serde = { workspace = true }
 
 # primitives
-sp-std = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
-sp-runtime = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
-sp-arithmetic = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+sp-runtime = { workspace = true }
+sp-arithmetic = { workspace = true }
 
 # frame dependencies
-frame-support = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
-frame-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
 
-pallet-staking = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+pallet-staking = { workspace = true }
+xx-staking-extension = { path = "../xx-staking-extension", default-features = false }
 
-frame-benchmarking = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false, optional = true }
+frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-io = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-staking = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-tracing = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-core = { workspace = true, default-features = true }
+sp-io = { workspace = true, default-features = true }
+sp-staking = { workspace = true, default-features = true }
+sp-tracing = { workspace = true, default-features = true }
 
-frame-election-provider-support = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-staking-reward-curve = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+frame-election-provider-support = { workspace = true, default-features = true }
+pallet-staking-reward-curve = { workspace = true, default-features = true }
 
-pallet-authorship = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-timestamp = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-balances = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-session = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+pallet-authorship = { workspace = true, default-features = true }
+pallet-timestamp = { workspace = true, default-features = true }
+pallet-balances = { workspace = true, default-features = true }
+pallet-session = { workspace = true, default-features = true }
 
 [features]
 default = ["std"]
 std = [
 	"codec/std",
 	"scale-info/std",
-	"serde",
-	"sp-std/std",
+	"serde/std",
 	"sp-runtime/std",
 	"sp-arithmetic/std",
 	"frame-support/std",
 	"frame-system/std",
 	"pallet-staking/std",
+	"xx-staking-extension/std",
 	"frame-benchmarking?/std",
 ]
 runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]

@@ -1,15 +1,18 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use frame_support::traits::{Currency, EnsureOrigin, ExistenceRequirement::AllowDeath, Get};
-use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
-};
-use frame_system::{self as system, ensure_root, ensure_signed};
+use frame_support::{dispatch::DispatchResult, ensure};
+use frame_system::{ensure_root, ensure_signed};
 use sp_core::U256;
 use sp_runtime::traits::SaturatedConversion;
-use sp_std::prelude::*;
 pub use weights::WeightInfo;
+
+pub use pallet::*;
 
 pub mod weights;
 
@@ -26,151 +29,191 @@ type ResourceId = chainbridge::ResourceId;
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-pub trait Config: system::Config + chainbridge::Config {
-    /// The Event type
-    type RuntimeEvent: From<Event<Self>> + Into<<Self as frame_system::Config>::RuntimeEvent>;
+#[frame_support::pallet]
+pub mod pallet {
+    use super::*;
+    use frame_support::pallet_prelude::*;
+    use frame_system::pallet_prelude::*;
 
-    /// Specifies the origin check provided by the bridge for calls that can only be called by the bridge pallet
-    type BridgeOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
+    #[pallet::pallet]
+    pub struct Pallet<T>(_);
 
-    /// The currency mechanism.
-    type Currency: Currency<Self::AccountId>;
+    #[pallet::config]
+    pub trait Config: frame_system::Config + chainbridge::Config {
+        /// The Event type
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-    /// Native token ID
-    type NativeTokenId: Get<ResourceId>;
+        /// Specifies the origin check provided by the bridge for calls that can only be called by the bridge pallet
+        type BridgeOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
 
-    /// Origin used to change fee and destination
-    type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+        /// The currency mechanism.
+        type Currency: Currency<Self::AccountId>;
 
-    /// Weight information for extrinsics in this pallet.
-    type WeightInfo: WeightInfo;
-}
+        /// Native token ID
+        type NativeTokenId: Get<ResourceId>;
 
-decl_storage! {
-    trait Store for Module<T: Config> as Swap {
-        /// Swap service fee charged when moving native tokens out of the chain
-        pub SwapFee get(fn swap_fee) config(): BalanceOf<T>;
+        /// Origin used to change fee and destination
+        type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-        /// Account to which the fee is paid to
-        pub FeeDestination get(fn fee_destination): Option<T::AccountId>;
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
 
-    add_extra_genesis {
-        config(chains): Vec<u8>;
-        config(relayers): Vec<T::AccountId>;
-        config(resources): Vec<(ResourceId, Vec<u8>)>;
-        config(threshold): u32;
-        config(balance): BalanceOf<T>;
-        config(fee_destination): Option<T::AccountId>;
-
-        build(|config: &GenesisConfig<T>| {
-            /*
-            Initialize chains, relayers and resources
-            Uses expect to panic in the case the values cannot be set. This is reasonable as in that
-            case the chain is invalid and should not progress any further.
-            */
-            <Module<T>>::initialize(&config.chains, &config.relayers, &config.resources, &config.threshold)
-                .expect("Could not set config on Chainbridge pallet");
-            // Create chainbridge account and set the balance from genesis
-            let account_id = <chainbridge::Module<T>>::account_id();
-            T::Currency::make_free_balance_be(&account_id, config.balance);
-            // Set fee destination
-            if let Some(dest) = &config.fee_destination {
-                <FeeDestination<T>>::put(dest);
-            }
-        });
-    }
-}
-
-decl_event! {
-    pub enum Event<T> where Balance = BalanceOf<T>, <T as frame_system::Config>::AccountId {
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    pub enum Event<T: Config> {
         /// Swap service fee was changed
-        FeeChanged(Balance),
+        FeeChanged(BalanceOf<T>),
         /// Swap fee destination was changed
-        FeeDestinationChanged(AccountId),
+        FeeDestinationChanged(T::AccountId),
     }
-}
 
-decl_error! {
-    pub enum Error for Module<T: Config> {
+    #[pallet::error]
+    pub enum Error<T> {
         DestinationNotWhitelisted,
         InsufficientBalance,
     }
-}
 
-decl_module! {
-    pub struct Module<T: Config> for enum Call where origin: T::RuntimeOrigin {
-        const NativeTokenId: ResourceId = T::NativeTokenId::get();
+    /// Swap service fee charged when moving native tokens out of the chain
+    #[pallet::storage]
+    #[pallet::getter(fn swap_fee)]
+    pub type SwapFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
-        type Error = Error<T>;
+    /// Account to which the fee is paid to
+    #[pallet::storage]
+    #[pallet::getter(fn fee_destination)]
+    pub type FeeDestination<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
 
-        fn deposit_event() = default;
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub swap_fee: BalanceOf<T>,
+        pub chains: Vec<u8>,
+        pub relayers: Vec<T::AccountId>,
+        pub resources: Vec<(ResourceId, Vec<u8>)>,
+        pub threshold: u32,
+        pub balance: BalanceOf<T>,
+        pub fee_destination: Option<T::AccountId>,
+    }
 
-        //
-        // Initiation calls. These start a bridge transfer.
-        //
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                swap_fee: Default::default(),
+                chains: Default::default(),
+                relayers: Default::default(),
+                resources: Default::default(),
+                threshold: 1, // Must be > 0 for chainbridge
+                balance: Default::default(),
+                fee_destination: None,
+            }
+        }
+    }
 
+    #[pallet::genesis_build]
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+        fn build(&self) {
+            // Set swap fee
+            SwapFee::<T>::put(&self.swap_fee);
+
+            // Initialize chains, relayers and resources
+            // Uses expect to panic in the case the values cannot be set. This is reasonable as in that
+            // case the chain is invalid and should not progress any further.
+            Pallet::<T>::initialize(&self.chains, &self.relayers, &self.resources, &self.threshold)
+                .expect("Could not set config on Chainbridge pallet");
+
+            // Create chainbridge account and set the balance from genesis
+            let account_id = chainbridge::Pallet::<T>::account_id();
+            T::Currency::make_free_balance_be(&account_id, self.balance);
+
+            // Set fee destination
+            if let Some(dest) = &self.fee_destination {
+                FeeDestination::<T>::put(dest);
+            }
+        }
+    }
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
         /// Transfers an amount of the native token to some recipient on a (whitelisted) destination chain.
-        #[weight = <T as Config>::WeightInfo::transfer_native()]
-        pub fn transfer_native(origin, amount: BalanceOf<T>, recipient: Vec<u8>, dest_id: chainbridge::ChainId) -> DispatchResult {
+        #[pallet::call_index(0)]
+        #[pallet::weight(<T as Config>::WeightInfo::transfer_native())]
+        pub fn transfer_native(
+            origin: OriginFor<T>,
+            amount: BalanceOf<T>,
+            recipient: Vec<u8>,
+            dest_id: chainbridge::ChainId,
+        ) -> DispatchResult {
             let source = ensure_signed(origin)?;
 
             // Ensure destination chain is whitelisted
-            ensure!(<chainbridge::Module<T>>::chain_whitelisted(dest_id), Error::<T>::DestinationNotWhitelisted);
+            ensure!(
+                chainbridge::Pallet::<T>::chain_whitelisted(dest_id),
+                Error::<T>::DestinationNotWhitelisted
+            );
 
             // Ensure account has enough balance to pay for both fee and transfer
-            let fee = <SwapFee<T>>::get();
+            let fee = SwapFee::<T>::get();
             let balance = T::Currency::free_balance(&source);
             ensure!(balance >= amount + fee, Error::<T>::InsufficientBalance);
 
             // Transfer fee to configured destination (if destination exists)
-            if let Some(dest) = <FeeDestination<T>>::get() {
+            if let Some(dest) = FeeDestination::<T>::get() {
                 T::Currency::transfer(&source, &dest, fee, AllowDeath)?;
-            };
+            }
 
             // Transfer amount to bridge
-            let bridge_id = <chainbridge::Module<T>>::account_id();
+            let bridge_id = chainbridge::Pallet::<T>::account_id();
             T::Currency::transfer(&source, &bridge_id, amount, AllowDeath)?;
 
             let resource_id = T::NativeTokenId::get();
-            <chainbridge::Module<T>>::transfer_fungible(dest_id, resource_id, recipient,
-                U256::from(amount.saturated_into::<u128>()))?;
+            chainbridge::Pallet::<T>::transfer_fungible(
+                dest_id,
+                resource_id,
+                recipient,
+                U256::from(amount.saturated_into::<u128>()),
+            )?;
             Ok(())
         }
 
-        //
-        // Executable calls. These can be triggered by a bridge transfer initiated on another chain
-        //
-
         /// Executes a currency transfer from the bridge account
-        #[weight = <T as Config>::WeightInfo::transfer()]
-        pub fn transfer(origin, to: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+        #[pallet::call_index(1)]
+        #[pallet::weight(<T as Config>::WeightInfo::transfer())]
+        pub fn transfer(
+            origin: OriginFor<T>,
+            to: T::AccountId,
+            amount: BalanceOf<T>,
+        ) -> DispatchResult {
             let source = T::BridgeOrigin::ensure_origin(origin)?;
             T::Currency::transfer(&source, &to, amount, AllowDeath)?;
             Ok(())
         }
 
         /// Set swap fee
-        #[weight = <T as Config>::WeightInfo::set_swap_fee()]
-        pub fn set_swap_fee(origin, #[compact] fee: BalanceOf<T>) -> DispatchResult {
+        #[pallet::call_index(2)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_swap_fee())]
+        pub fn set_swap_fee(
+            origin: OriginFor<T>,
+            #[pallet::compact] fee: BalanceOf<T>,
+        ) -> DispatchResult {
             Self::ensure_admin(origin)?;
-            <SwapFee<T>>::put(fee);
-            Self::deposit_event(RawEvent::FeeChanged(fee));
+            SwapFee::<T>::put(fee);
+            Self::deposit_event(Event::FeeChanged(fee));
             Ok(())
         }
 
         /// Set fee destination
-        #[weight = <T as Config>::WeightInfo::set_fee_destination()]
-        pub fn set_fee_destination(origin, dest: T::AccountId) -> DispatchResult {
+        #[pallet::call_index(3)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_fee_destination())]
+        pub fn set_fee_destination(origin: OriginFor<T>, dest: T::AccountId) -> DispatchResult {
             Self::ensure_admin(origin)?;
-            <FeeDestination<T>>::put(dest.clone());
-            Self::deposit_event(RawEvent::FeeDestinationChanged(dest));
+            FeeDestination::<T>::put(dest.clone());
+            Self::deposit_event(Event::FeeDestinationChanged(dest));
             Ok(())
         }
     }
 }
 
-impl<T: Config> Module<T> {
+impl<T: Config> Pallet<T> {
     /// Initialize bridge configurations from genesis
     fn initialize(
         chains: &[u8],
@@ -179,18 +222,18 @@ impl<T: Config> Module<T> {
         threshold: &u32,
     ) -> DispatchResult {
         for c in chains {
-            <chainbridge::Module<T>>::whitelist(*c)?;
+            chainbridge::Pallet::<T>::whitelist(*c)?;
         }
 
         for rs in relayers {
-            <chainbridge::Module<T>>::register_relayer(rs.clone())?;
+            chainbridge::Pallet::<T>::register_relayer(rs.clone())?;
         }
 
-        for &(ref re, ref m) in resources.iter() {
-            <chainbridge::Module<T>>::register_resource(*re, m.clone())?;
+        for (re, m) in resources.iter() {
+            chainbridge::Pallet::<T>::register_resource(*re, m.clone())?;
         }
 
-        <chainbridge::Module<T>>::set_relayer_threshold(*threshold)
+        chainbridge::Pallet::<T>::set_relayer_threshold(*threshold)
     }
 
     fn ensure_admin(o: T::RuntimeOrigin) -> DispatchResult {
@@ -201,11 +244,5 @@ impl<T: Config> Module<T> {
     }
 }
 
-// Manual implementation of WhitelistedStorageKeys for runtime benchmarks
-#[cfg(feature = "runtime-benchmarks")]
-impl<T: Config> frame_support::traits::WhitelistedStorageKeys for Module<T> {
-    fn whitelisted_storage_keys() -> frame_support::sp_std::vec::Vec<frame_benchmarking::TrackedStorageKey> {
-        use frame_support::sp_std::vec;
-        vec![]
-    }
-}
+// Type alias for backwards compatibility
+pub type Module<T> = Pallet<T>;

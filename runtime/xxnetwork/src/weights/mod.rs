@@ -3,6 +3,8 @@
 pub mod claims;
 pub mod frame_election_provider_support;
 pub mod frame_system;
+pub mod frame_system_extensions;
+pub mod pallet_transaction_payment;
 pub mod pallet_assets;
 pub mod pallet_bags_list;
 pub mod pallet_balances;
@@ -30,7 +32,6 @@ pub mod pallet_uniques;
 pub mod pallet_utility;
 pub mod pallet_vesting;
 pub mod swap;
-pub mod xx_betanet_rewards;
 pub mod xx_cmix;
 pub mod xx_economics;
 pub mod xx_public;

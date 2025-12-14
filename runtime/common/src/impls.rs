@@ -17,31 +17,49 @@
 
 //! Some configurable implementations as associated type for the substrate runtime.
 
-use frame_support::traits::{OnUnbalanced, Imbalance, Currency};
-use crate::NegativeImbalance;
+use frame_support::traits::{
+	OnUnbalanced,
+	fungible::{Balanced, Credit},
+	tokens::imbalance::Imbalance,
+};
 
-// Split fees between treasury and block author
-pub struct DealWithFees<R>(sp_std::marker::PhantomData<R>);
-impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithFees<R>
+/// Type alias for fungible credit used in fee handling
+pub type FungibleCredit<R> = Credit<
+	<R as frame_system::Config>::AccountId,
+	pallet_balances::Pallet<R>,
+>;
+
+/// Split fees between treasury and block author using fungible traits
+///
+/// - Fees: 80% to treasury, 20% to author
+/// - Tips: 100% to author
+pub struct DealWithFees<R>(core::marker::PhantomData<R>);
+
+impl<R> OnUnbalanced<FungibleCredit<R>> for DealWithFees<R>
 where
 	R: pallet_balances::Config + pallet_authorship::Config + pallet_treasury::Config,
-	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
 	<R as frame_system::Config>::AccountId: From<node_primitives::AccountId>,
 	<R as frame_system::Config>::AccountId: Into<node_primitives::AccountId>,
-	<R as frame_system::Config>::RuntimeEvent: From<pallet_balances::Event<R>>,
 {
-	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance<R>>) {
+	fn on_unbalanceds(mut fees_then_tips: impl Iterator<Item = FungibleCredit<R>>) {
 		if let Some(fees) = fees_then_tips.next() {
-			// for fees, 80% to treasury, 20% to author
-			let mut split = fees.ration(80, 20);
+			// Split fees: 80% to treasury, 20% to author
+			let (treasury_part, mut author_part) = fees.ration(80, 20);
+
+			// Tips go 100% to author
 			if let Some(tips) = fees_then_tips.next() {
-				// for tips, if any, 100% to author
-				tips.merge_into(&mut split.1);
+				author_part.subsume(tips);
 			}
-			<pallet_treasury::Pallet<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
+
+			// Resolve treasury portion to treasury account
+			let treasury_account = pallet_treasury::Pallet::<R>::account_id();
+			let _ = <pallet_balances::Pallet<R> as Balanced<_>>::resolve(&treasury_account, treasury_part);
+
+			// Resolve author portion to block author
 			if let Some(author) = <pallet_authorship::Pallet<R>>::author() {
-				<pallet_balances::Pallet<R>>::resolve_creating(&author, split.1);
+				let _ = <pallet_balances::Pallet<R> as Balanced<_>>::resolve(&author, author_part);
 			}
+			// If no author, author_part is dropped (reducing total issuance)
 		}
 	}
 }

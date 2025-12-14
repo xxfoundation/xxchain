@@ -11,35 +11,36 @@ publish = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0" }
-scale-info = { version = "2.1.1", features = ["derive"] }
-node-primitives = { version = "0.2.0", path = "../primitives" }
-runtime-common = { version = "0.2.0", path = "../runtime/common" }
-xxnetwork-runtime = { version = "0.2.6", path = "../runtime/xxnetwork", optional=true }
-canary-runtime = { version = "0.2.0", path = "../runtime/canary", optional=true }
-sc-executor = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-core = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-keystore = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-state-machine = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-trie = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-frame-benchmarking = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-tracing = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+codec = { workspace = true, features = ["std"] }
+scale-info = { workspace = true, features = ["std", "derive"] }
+node-primitives = { workspace = true, features = ["std"] }
+runtime-common = { workspace = true, features = ["std"] }
+xxnetwork-runtime = { path = "../runtime/xxnetwork", optional = true }
+sc-executor = { workspace = true }
+sp-core = { workspace = true, features = ["std"] }
+sp-keystore = { workspace = true }
+sp-state-machine = { workspace = true }
+sp-trie = { workspace = true }
+frame-benchmarking = { workspace = true, features = ["std"] }
+sp-tracing = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
-criterion = "0.3.0"
-frame-support = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-frame-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-node-testing = { version = "0.2.0", path = "../testing" }
-pallet-balances = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-im-online = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-timestamp = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-treasury = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-transaction-payment = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-application-crypto = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-consensus-babe = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-runtime = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-externalities = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-keyring = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+criterion = "0.5"
+frame-support = { workspace = true, features = ["std"] }
+frame-system = { workspace = true, features = ["std"] }
+# node-testing = { path = "../testing" }  # Temporarily disabled during SDK upgrade
+pallet-balances = { workspace = true, features = ["std"] }
+pallet-im-online = { workspace = true, features = ["std"] }
+pallet-timestamp = { workspace = true, features = ["std"] }
+pallet-treasury = { workspace = true, features = ["std"] }
+pallet-transaction-payment = { workspace = true, features = ["std"] }
+sp-application-crypto = { workspace = true, features = ["std"] }
+sp-consensus-babe = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-externalities = { workspace = true }
+sp-keyring = { workspace = true }
+sp-io = { workspace = true, features = ["std"] }
+claims = { workspace = true, features = ["std"] }
 wat = "1.0"
 futures = "0.3.21"
 
@@ -47,7 +48,6 @@ futures = "0.3.21"
 default = ["xxnetwork"]
 stress-test = []
 xxnetwork = ["xxnetwork-runtime"]
-canary = ["canary-runtime"]
 
 [[bench]]
 name = "bench"

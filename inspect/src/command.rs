@@ -38,10 +38,10 @@ impl InspectCmd {
 		EX: NativeExecutionDispatch + 'static,
 	{
 		let executor = NativeElseWasmExecutor::<EX>::new(
-			config.wasm_method,
-			config.default_heap_pages,
-			config.max_runtime_instances,
-			config.runtime_cache_size,
+			config.executor.wasm_method,
+			config.executor.default_heap_pages,
+			config.executor.max_runtime_instances,
+			config.executor.runtime_cache_size,
 		);
 
 		let client = new_full_client::<B, RA, _>(&config, None, executor)?;

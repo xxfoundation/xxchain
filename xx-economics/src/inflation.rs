@@ -1,18 +1,16 @@
 use crate::BalanceOf;
-use super::{Config, Module, LiquidityRewards};
+use super::{Config, Pallet, pallet::LiquidityRewards};
 use pallet_staking::EraPayout;
 use pallet_staking_reward_fn::compute_inflation;
 use sp_runtime::traits::{Zero, Saturating};
 use sp_runtime::{Perbill, RuntimeDebug};
-use codec::{Encode, Decode};
-use sp_std::{prelude::*};
-use frame_support::{StorageValue, traits::{Currency, Get}};
-use pallet_staking::CustodyHandler;
+use codec::{Encode, Decode, DecodeWithMemTracking, MaxEncodedLen};
+use frame_support::traits::{Currency, Get};
+use frame_system::pallet_prelude::BlockNumberFor;
 use xx_public::PublicAccountsHandler;
 
 /// Inflation fixed parameters
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, scale_info::TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, scale_info::TypeInfo, MaxEncodedLen, serde::Serialize, serde::Deserialize)]
 pub struct InflationFixedParams {
     /// Minimum inflation
     #[codec(compact)]
@@ -40,8 +38,7 @@ impl Default for InflationFixedParams {
 }
 
 /// Ideal interest point
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, scale_info::TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, scale_info::TypeInfo, MaxEncodedLen, serde::Serialize, serde::Deserialize)]
 pub struct IdealInterestPoint<B> {
     /// Block number
     pub block: B,
@@ -62,40 +59,10 @@ impl<B: Zero> Default for IdealInterestPoint<B> {
     }
 }
 
-/// Ideal interest curve example:
-// 100% ___
-//         \
-//      |   \
-//      |    \
-//      |     \
-//      |      \
-//      |       \
-//      |        \
-//      |         \
-//      |          \
-//      |           \
-//      |            \
-//      |         20% \_____________
-//      |                           |
-//      |             |         15% |_____________
-//      |             |                           |
-//      |             |             |         10% |______________ ...
-//      |             |             |
-//      |             |             |             |
-//      0           1 year       2 years       3 years
-
-/// Points that encode the example curve
-//  (0              , 100%)
-//  (block(1 year)  ,  20%)
-//  (block(2 year)  ,  20%)
-//  (block(2 year)+1,  15%)
-//  (block(3 year)  ,  15%)
-//  (block(3 year)+1,  10%)
-
 /// Implement Inflation sub module functions
-impl<T: Config> Module<T> {
+impl<T: Config> Pallet<T> {
     /// Get the ideal interest according to block number
-    pub fn get_ideal_interest(block: T::BlockNumber) -> Perbill {
+    pub fn get_ideal_interest(block: BlockNumberFor<T>) -> Perbill {
         let points = Self::interest_points();
         match points.iter().position(|p| p.block >= block) {
             // If position found, get points from index-1 and index
@@ -120,9 +87,9 @@ impl<T: Config> Module<T> {
     /// Compute ideal interest from two points
     /// There are only two options: linear decreasing or constant
     fn compute_ideal_interest(
-        block: T::BlockNumber,
-        start: IdealInterestPoint<T::BlockNumber>,
-        end: IdealInterestPoint<T::BlockNumber>) -> Perbill {
+        block: BlockNumberFor<T>,
+        start: IdealInterestPoint<BlockNumberFor<T>>,
+        end: IdealInterestPoint<BlockNumberFor<T>>) -> Perbill {
         // Compute interest difference (according to curve direction)
         let decreasing = start.interest > end.interest;
         let diff = if decreasing {
@@ -161,16 +128,18 @@ impl<T: Config> Module<T> {
         // Calculate ideal rewards based on interest and ideal stake
         let payout = portion * (interest * Self::ideal_stake_rewards());
         // Update balance
-        <LiquidityRewards<T>>::mutate(|balance| *balance = balance.saturating_sub(payout));
+        LiquidityRewards::<T>::mutate(|balance| *balance = balance.saturating_sub(payout));
     }
 
     /// Compute total stakeable
+    ///
+    /// Total stakeable = Total Issuance - (Rewards Pool + Liquidity Rewards + Public Accounts)
+    ///
+    /// NOTE: Custody balance is no longer subtracted as custody staking has been discontinued.
     pub fn compute_total_stakeable(issuance: BalanceOf<T>) -> BalanceOf<T> {
         let unstakeable =
             // Balance of Rewards Pool
             Self::rewards_balance()
-            // add total balance under custody
-            + T::CustodyHandler::total_custody()
             // add liquidity rewards balance
             + Self::liquidity_rewards()
             // add public funds accounts funds (testnet + sale)
@@ -184,7 +153,7 @@ impl<T: Config> Module<T> {
 /// Implement EraPayout trait
 impl<
     T: Config,
-> EraPayout<BalanceOf<T>> for Module<T> {
+> EraPayout<BalanceOf<T>> for Pallet<T> {
     fn era_payout(
         total_staked: BalanceOf<T>,
         total_issuance: BalanceOf<T>,

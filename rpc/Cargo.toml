@@ -10,25 +10,24 @@ repository = "https://github.com/xx-labs/xxchain/"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-jsonrpsee = { version = "0.16.2", features = ["server"] }
-node-primitives = { version = "0.2.0", path = "../primitives" }
-pallet-transaction-payment-rpc = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-client-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus-babe = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus-babe-rpc = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus-epochs = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-chain-spec = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus-grandpa = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus-grandpa-rpc = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-rpc-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-rpc = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-sync-state-rpc = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-block-builder = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-blockchain = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-keystore = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-consensus = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-consensus-babe = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-runtime = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-transaction-pool-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-substrate-frame-rpc-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+jsonrpsee = { version = "0.24", features = ["server"] }
+node-primitives = { workspace = true, features = ["std"] }
+pallet-transaction-payment-rpc = { workspace = true }
+sc-client-api = { workspace = true }
+sc-consensus-babe = { workspace = true }
+sc-consensus-babe-rpc = { workspace = true }
+sc-chain-spec = { workspace = true }
+sc-consensus-grandpa = { workspace = true }
+sc-consensus-grandpa-rpc = { workspace = true }
+sc-rpc-api = { workspace = true }
+sc-rpc = { workspace = true }
+sc-sync-state-rpc = { workspace = true }
+sp-api = { workspace = true, features = ["std"] }
+sp-block-builder = { workspace = true, features = ["std"] }
+sp-blockchain = { workspace = true }
+sp-keystore = { workspace = true }
+sp-consensus = { workspace = true }
+sp-consensus-babe = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sc-transaction-pool-api = { workspace = true }
+substrate-frame-rpc-system = { workspace = true }

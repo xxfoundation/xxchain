@@ -1,13 +1,13 @@
+//! # XX Team Custody Pallet
+//!
+//! This pallet manages team token custody with time-locked vesting and payout schedules.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::traits::{Currency, Get, EnsureOrigin, fungible::Inspect};
-use frame_support::{
-    decl_event, decl_error, decl_module, decl_storage, dispatch::DispatchResult, ensure,
-};
-use sp_runtime::traits::{Convert};
-use frame_system::{ensure_root, ensure_signed};
+extern crate alloc;
+
+pub use pallet::*;
 pub use weights::WeightInfo;
-use sp_std::prelude::*;
 
 pub mod custody;
 pub mod weights;
@@ -20,100 +20,97 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
-pub type BalanceOf<T> =
-<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+use alloc::vec::Vec;
+use frame_support::traits::{Currency, Get, fungible::Inspect};
+use sp_runtime::traits::Convert;
 
-pub trait Config: frame_system::Config + pallet_proxy::Config + pallet_staking::Config {
+pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-    /// The Event type.
-    type RuntimeEvent: From<Event<Self>> + Into<<Self as frame_system::Config>::RuntimeEvent>;
+#[frame_support::pallet]
+pub mod pallet {
+    use super::*;
+    use frame_support::pallet_prelude::*;
+    use frame_system::pallet_prelude::*;
 
-    /// The currency mechanism.
-    type Currency: Currency<Self::AccountId> + Inspect<Self::AccountId>;
+    #[pallet::pallet]
+    pub struct Pallet<T>(_);
 
-    //----------------   CUSTODY    ----------------//
+    #[pallet::config]
+    pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> + pallet_proxy::Config + pallet_staking::Config {
+        /// The currency mechanism.
+        type Currency: Currency<Self::AccountId> + Inspect<Self::AccountId>;
 
-    /// The payout frequency of vested coins under custody.
-    type PayoutFrequency: Get<Self::BlockNumber>;
+        /// The payout frequency of vested coins under custody.
+        #[pallet::constant]
+        type PayoutFrequency: Get<BlockNumberFor<Self>>;
 
-    /// The custody duration.
-    type CustodyDuration: Get<Self::BlockNumber>;
+        /// The custody duration.
+        #[pallet::constant]
+        type CustodyDuration: Get<BlockNumberFor<Self>>;
 
-    /// The governance custody duration.
-    type GovernanceCustodyDuration: Get<Self::BlockNumber>;
+        /// The governance custody duration.
+        #[pallet::constant]
+        type GovernanceCustodyDuration: Get<BlockNumberFor<Self>>;
 
-    /// The getter for the proxy type to use for custody accounts
-    type CustodyProxy: Get<<Self as pallet_proxy::Config>::ProxyType>;
+        /// The getter for the proxy type to use for custody accounts
+        type CustodyProxy: Get<<Self as pallet_proxy::Config>::ProxyType>;
 
-    /// Convert the block number into a balance.
-    type BlockNumberToBalance: Convert<Self::BlockNumber, BalanceOf<Self>>;
+        /// Convert the block number into a balance.
+        type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
 
-    //----------------    ADMIN     ----------------//
+        /// The admin origin for the pallet (Tech Committee unanimity).
+        type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-    /// The admin origin for the pallet (Tech Committee unanimity).
-    type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-    /// Weight information for extrinsics in this pallet.
-    type WeightInfo: WeightInfo;
-}
-
-decl_storage! {
-    trait Store for Module<T: Config> as XXCustody {
-        /// Keep track of team members'accounts custody info
-        pub TeamAccounts get(fn team_accounts): map hasher(twox_64_concat)
-            T::AccountId => Option<custody::CustodyInfo<T::AccountId, BalanceOf<T>>>;
-
-        /// Keep track of custody accounts
-        pub CustodyAccounts get(fn custody_accounts): map hasher(twox_64_concat)
-            T::AccountId => ();
-
-        /// Keep track of custodians
-        pub Custodians get(fn custodians) config(): map hasher(twox_64_concat)
-            T::AccountId => ();
-
-        /// Total amount under custody
-        pub TotalCustody get(fn total_custody): BalanceOf<T>;
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
-	add_extra_genesis {
-	    config(team_allocations): Vec<(T::AccountId, BalanceOf<T>)>;
-		build(|config| {
-            for &(ref who, balance) in &config.team_allocations {
-                // Initialized custody for this member
-                <Module<T>>::initialize_custody(who, balance);
-            }
-		});
-	}
-}
 
-decl_event! {
-    pub enum Event<T> where
-        Balance = BalanceOf<T>,
-        <T as frame_system::Config>::AccountId,
-    {
+    /// Keep track of team members' accounts custody info
+    #[pallet::storage]
+    #[pallet::getter(fn team_accounts)]
+    pub type TeamAccounts<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        custody::CustodyInfo<T::AccountId, BalanceOf<T>>,
+        OptionQuery,
+    >;
 
-        //----------------   CUSTODY    ----------------//
+    /// Keep track of custody accounts
+    #[pallet::storage]
+    #[pallet::getter(fn custody_accounts)]
+    pub type CustodyAccounts<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, (), OptionQuery>;
 
+    /// Keep track of custodians
+    #[pallet::storage]
+    #[pallet::getter(fn custodians)]
+    pub type Custodians<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, (), OptionQuery>;
+
+    /// Total amount under custody
+    #[pallet::storage]
+    #[pallet::getter(fn total_custody)]
+    pub type TotalCustody<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    pub enum Event<T: Config> {
         /// Team payout was given from custody
-        PayoutFromCustody(AccountId, Balance),
+        PayoutFromCustody { who: T::AccountId, amount: BalanceOf<T> },
         /// Team payout was given from reserve
-        PayoutFromReserve(AccountId, Balance),
+        PayoutFromReserve { who: T::AccountId, amount: BalanceOf<T> },
         /// Custody finished for the given team account
-        CustodyDone(AccountId),
-
-        //----------------    ADMIN     ----------------//
-
+        CustodyDone { who: T::AccountId },
         /// Custodian added
-        CustodianAdded(AccountId),
+        CustodianAdded { who: T::AccountId },
         /// Custodian removed
-        CustodianRemoved(AccountId),
+        CustodianRemoved { who: T::AccountId },
         /// Team member updated
-        TeamMemberUpdated(AccountId, AccountId),
+        TeamMemberUpdated { old: T::AccountId, new: T::AccountId },
     }
-}
 
-decl_error! {
-	pub enum Error for Module<T: Config> {
-		/// Invalid team member account
+    #[pallet::error]
+    pub enum Error<T> {
+        /// Invalid team member account
         InvalidTeamMember,
         /// Invalid custody account
         InvalidCustodyAccount,
@@ -131,64 +128,76 @@ decl_error! {
         GovernanceCustodyPeriodEnded,
         /// This team member account already exists
         TeamMemberExists,
-	}
-}
+    }
 
-decl_module! {
-	pub struct Module<T: Config> for enum Call where origin: T::RuntimeOrigin {
+    #[pallet::genesis_config]
+    #[derive(frame_support::DefaultNoBound)]
+    pub struct GenesisConfig<T: Config> {
+        pub custodians: Vec<(T::AccountId, ())>,
+        pub team_allocations: Vec<(T::AccountId, BalanceOf<T>)>,
+    }
 
-        type Error = Error<T>;
+    #[pallet::genesis_build]
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+        fn build(&self) {
+            for (custodian, _) in &self.custodians {
+                Custodians::<T>::insert(custodian, ());
+            }
+            for (who, balance) in &self.team_allocations {
+                custody::initialize_custody::<T>(who, *balance);
+            }
+        }
+    }
 
-	    fn deposit_event() = default;
-
-        //----------------   CUSTODY    ----------------//
-
-	    const PayoutFrequency: T::BlockNumber = T::PayoutFrequency::get();
-	    const CustodyDuration: T::BlockNumber = T::CustodyDuration::get();
-	    const GovernanceCustodyDuration: T::BlockNumber = T::GovernanceCustodyDuration::get();
-
-	    /// Payout the amount already vested to the given team member account
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
+        /// Payout the amount already vested to the given team member account
         ///
         /// Anyone can call this function since it is deterministic
-        ///
-        #[weight = <T as Config>::WeightInfo::payout()]
-        pub fn payout(origin, who: T::AccountId) {
+        #[pallet::call_index(0)]
+        #[pallet::weight(<T as Config>::WeightInfo::payout())]
+        pub fn payout(origin: OriginFor<T>, who: T::AccountId) -> DispatchResult {
             ensure_signed(origin)?;
             ensure!(Self::is_team_member(&who), Error::<T>::InvalidTeamMember);
-            Self::try_payout(who)?;
+            custody::try_payout::<T>(who)?;
+            Ok(())
         }
 
         /// Bond the given amount from the given custody account, with the specified controller
         ///
         /// During the Custody period, the function is callable by Custodians only. After the
         /// Custody ends, the function is not callable anymore.
-        ///
-        #[weight = <T as Config>::WeightInfo::custody_bond()]
-        pub fn custody_bond(origin,
+        #[pallet::call_index(1)]
+        #[pallet::weight(<T as Config>::WeightInfo::custody_bond())]
+        pub fn custody_bond(
+            origin: OriginFor<T>,
             custody: T::AccountId,
             controller: T::AccountId,
-            #[compact] value: pallet_staking::BalanceOf<T>,
-        ) {
+            #[pallet::compact] value: pallet_staking::BalanceOf<T>,
+        ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(Self::is_custodian(&who), Error::<T>::MustBeCustodian);
             ensure!(Self::is_custody(&custody), Error::<T>::InvalidCustodyAccount);
-            Self::try_custody_bond(custody, controller, value)?;
+            custody::try_custody_bond::<T>(custody, controller, value)?;
+            Ok(())
         }
 
         /// Bond extra amount from the given custody account
         ///
         /// During the Custody period, the function is callable by Custodians only. After the
         /// Custody ends, the function is not callable anymore.
-        ///
-        #[weight = <T as Config>::WeightInfo::custody_bond_extra()]
-        pub fn custody_bond_extra(origin,
+        #[pallet::call_index(2)]
+        #[pallet::weight(<T as Config>::WeightInfo::custody_bond_extra())]
+        pub fn custody_bond_extra(
+            origin: OriginFor<T>,
             custody: T::AccountId,
-            #[compact] value: pallet_staking::BalanceOf<T>,
-        ) {
+            #[pallet::compact] value: pallet_staking::BalanceOf<T>,
+        ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(Self::is_custodian(&who), Error::<T>::MustBeCustodian);
             ensure!(Self::is_custody(&custody), Error::<T>::InvalidCustodyAccount);
-            Self::try_custody_bond_extra(custody, value)?;
+            custody::try_custody_bond_extra::<T>(custody, value)?;
+            Ok(())
         }
 
         /// Set the controller of a given custody account
@@ -196,15 +205,19 @@ decl_module! {
         /// During the Custody period, the function is callable by Custodians only. After the
         /// Custody ends, the function is not callable anymore.
         ///
-        #[weight = <T as Config>::WeightInfo::custody_set_controller()]
-        pub fn custody_set_controller(origin,
+        /// NOTE: Controller is deprecated in SDK 2509+. This function is now a no-op.
+        #[pallet::call_index(3)]
+        #[pallet::weight(<T as Config>::WeightInfo::custody_set_controller())]
+        pub fn custody_set_controller(
+            origin: OriginFor<T>,
             custody: T::AccountId,
             controller: T::AccountId,
-        ) {
+        ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(Self::is_custodian(&who), Error::<T>::MustBeCustodian);
             ensure!(Self::is_custody(&custody), Error::<T>::InvalidCustodyAccount);
-            Self::try_custody_set_controller(custody, controller)?;
+            custody::try_custody_set_controller::<T>(custody, controller)?;
+            Ok(())
         }
 
         /// Set the governance proxy of a given custody account
@@ -214,111 +227,102 @@ decl_module! {
         ///
         /// During the Governance Custody period, the function is callable by Custodians only.
         /// After the Governance Custody ends, the function is not callable anymore.
-        ///
-        #[weight = <T as Config>::WeightInfo::custody_set_proxy()]
-        pub fn custody_set_proxy(origin,
+        #[pallet::call_index(4)]
+        #[pallet::weight(<T as Config>::WeightInfo::custody_set_proxy())]
+        pub fn custody_set_proxy(
+            origin: OriginFor<T>,
             custody: T::AccountId,
             proxy: T::AccountId,
-        ) {
+        ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(Self::is_custodian(&who), Error::<T>::MustBeCustodian);
             ensure!(Self::is_custody(&custody), Error::<T>::InvalidCustodyAccount);
-            Self::try_custody_set_proxy(custody, proxy)?;
+            custody::try_custody_set_proxy::<T>(custody, proxy)?;
+            Ok(())
         }
 
         /// Allow the team member to set a governance proxy of their own custody account
         ///
         /// During the Governance Custody period, the function is not callable.
         /// After the Governance Custody ends, the function is callable by team members only.
-        ///
-        #[weight = <T as Config>::WeightInfo::team_custody_set_proxy()]
-        pub fn team_custody_set_proxy(origin, proxy: T::AccountId) {
+        #[pallet::call_index(5)]
+        #[pallet::weight(<T as Config>::WeightInfo::team_custody_set_proxy())]
+        pub fn team_custody_set_proxy(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(Self::is_team_member(&who), Error::<T>::InvalidTeamMember);
-            Self::try_team_custody_set_proxy(who, proxy)?;
+            custody::try_team_custody_set_proxy::<T>(who, proxy)?;
+            Ok(())
         }
-
-        //----------------    ADMIN     ----------------//
 
         /// Add a custodian account
         ///
         /// The dispatch origin must be AdminOrigin.
-        ///
-        #[weight = <T as Config>::WeightInfo::add_custodian()]
-        pub fn add_custodian(origin, custodian: T::AccountId) {
+        #[pallet::call_index(6)]
+        #[pallet::weight(<T as Config>::WeightInfo::add_custodian())]
+        pub fn add_custodian(origin: OriginFor<T>, custodian: T::AccountId) -> DispatchResult {
             Self::ensure_admin(origin)?;
-            <Custodians<T>>::insert(&custodian, ());
-            Self::deposit_event(RawEvent::CustodianAdded(custodian));
+            Custodians::<T>::insert(&custodian, ());
+            Self::deposit_event(Event::CustodianAdded { who: custodian });
+            Ok(())
         }
 
         /// Remove a custodian account
         ///
         /// The dispatch origin must be AdminOrigin.
-        ///
-        #[weight = <T as Config>::WeightInfo::remove_custodian()]
-        pub fn remove_custodian(origin, custodian: T::AccountId) {
+        #[pallet::call_index(7)]
+        #[pallet::weight(<T as Config>::WeightInfo::remove_custodian())]
+        pub fn remove_custodian(origin: OriginFor<T>, custodian: T::AccountId) -> DispatchResult {
             Self::ensure_admin(origin)?;
-            <Custodians<T>>::remove(&custodian);
-            Self::deposit_event(RawEvent::CustodianRemoved(custodian));
+            Custodians::<T>::remove(&custodian);
+            Self::deposit_event(Event::CustodianRemoved { who: custodian });
+            Ok(())
         }
 
         /// Replace an existing team member account with a new account
         ///
         /// The dispatch origin must be AdminOrigin.
-        ///
-        #[weight = <T as Config>::WeightInfo::replace_team_member()]
-        pub fn replace_team_member(origin, who: T::AccountId, new: T::AccountId) {
+        #[pallet::call_index(8)]
+        #[pallet::weight(<T as Config>::WeightInfo::replace_team_member())]
+        pub fn replace_team_member(
+            origin: OriginFor<T>,
+            who: T::AccountId,
+            new: T::AccountId,
+        ) -> DispatchResult {
             Self::ensure_admin(origin)?;
             ensure!(Self::is_team_member(&who), Error::<T>::InvalidTeamMember);
             ensure!(!Self::is_team_member(&new), Error::<T>::TeamMemberExists);
-            Self::update_team_member(who.clone(), new.clone());
-            Self::deposit_event(RawEvent::TeamMemberUpdated(who, new));
+            custody::update_team_member::<T>(who.clone(), new.clone());
+            Self::deposit_event(Event::TeamMemberUpdated { old: who, new });
+            Ok(())
         }
-	}
-}
-
-impl<T: Config> Module<T> {
-    /// Check if given account is a team member
-    fn is_team_member(who: &T::AccountId) -> bool {
-        <TeamAccounts<T>>::contains_key(who)
     }
 
-    /// Check if given account is a custody account
-    fn is_custody(who: &T::AccountId) -> bool {
-        <CustodyAccounts<T>>::contains_key(who)
-    }
+    impl<T: Config> Pallet<T> {
+        /// Check if given account is a team member
+        pub fn is_team_member(who: &T::AccountId) -> bool {
+            TeamAccounts::<T>::contains_key(who)
+        }
 
-    /// Check if given account is a custodian
-    fn is_custodian(who: &T::AccountId) -> bool {
-        <Custodians<T>>::contains_key(who)
-    }
+        /// Check if given account is a custody account
+        pub fn is_custody(who: &T::AccountId) -> bool {
+            CustodyAccounts::<T>::contains_key(who)
+        }
 
-    /// Check if origin is admin
-    fn ensure_admin(o: T::RuntimeOrigin) -> DispatchResult {
-        <T as Config>::AdminOrigin::try_origin(o)
-            .map(|_| ())
-            .or_else(ensure_root)?;
-        Ok(())
-    }
+        /// Check if given account is a custodian
+        pub fn is_custodian(who: &T::AccountId) -> bool {
+            Custodians::<T>::contains_key(who)
+        }
 
-}
-
-/// Implement CustodyHandler trait
-impl<T: Config> pallet_staking::CustodyHandler<T::AccountId, BalanceOf<T>> for Module<T> {
-    fn is_custody_account(who: &T::AccountId) -> bool {
-        Self::is_custody(who)
-    }
-
-    fn total_custody() -> BalanceOf<T> {
-        Self::total_custody()
+        /// Check if origin is admin
+        fn ensure_admin(o: T::RuntimeOrigin) -> DispatchResult {
+            <T as Config>::AdminOrigin::try_origin(o)
+                .map(|_| ())
+                .or_else(|o| frame_system::ensure_root(o))?;
+            Ok(())
+        }
     }
 }
 
-// Manual implementation of WhitelistedStorageKeys for runtime benchmarks
-#[cfg(feature = "runtime-benchmarks")]
-impl<T: Config> frame_support::traits::WhitelistedStorageKeys for Module<T> {
-    fn whitelisted_storage_keys() -> frame_support::sp_std::vec::Vec<frame_benchmarking::TrackedStorageKey> {
-        use frame_support::sp_std::vec;
-        vec![]
-    }
-}
+// Re-export for backwards compatibility
+pub use pallet::{Config, Pallet, Event, Error, GenesisConfig};
+pub use pallet::{TeamAccounts, CustodyAccounts, Custodians, TotalCustody};

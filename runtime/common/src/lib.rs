@@ -16,14 +16,17 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Common runtime code for xxnetwork and canarynet.
+//! Common runtime code for xxnetwork.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
 
 pub mod constants;
 pub mod impls;
 
-use sp_std::prelude::*;
+#[allow(unused_imports)]
+use alloc::vec; // Required by generate_solution_type! macro
 use frame_support::{
 	parameter_types,
 	dispatch::DispatchClass,
@@ -31,7 +34,7 @@ use frame_support::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_REF_TIME_PER_SECOND},
 		Weight,
 	},
-	traits::{Currency, LockIdentifier, WithdrawReasons},
+	traits::{LockIdentifier, WithdrawReasons},
 	PalletId,
 };
 use frame_system::limits;
@@ -42,9 +45,6 @@ use frame_election_provider_support::BalancingConfig;
 use static_assertions::const_assert;
 use constants::{currency::{deposit, CENTS, UNITS}, time::DAYS};
 use codec::Decode;
-
-pub type NegativeImbalance<T> =
-<pallet_balances::Pallet<T> as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
 /// We assume that ~1% of the block weight is consumed by `on_initialize` handlers.
 /// This is used to limit the maximal weight of a single extrinsic.
@@ -146,8 +146,9 @@ parameter_types! {
 	// signed config
 	pub const SignedMaxSubmissions: u32 = 16;
 	pub const SignedMaxRefunds: u32 = 16 / 4;
-	pub const SignedDepositBase: Balance = deposit(2, 0);
+	pub const SignedFixedDeposit: Balance = deposit(2, 0);
 	pub const SignedDepositByte: Balance = deposit(0, 10) / 1024;
+	pub SignedDepositIncreaseFactor: Percent = Percent::from_percent(10);
 	// Each good submission will get 1 UNIT as reward
 	pub SignedRewardBase: Balance = 1 * UNITS;
 	pub BetterUnsignedThreshold: Perbill = Perbill::from_rational(5u32, 10_000);

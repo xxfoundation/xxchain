@@ -4,32 +4,38 @@ version = "0.1.0"
 authors = ["Bernardo Cardoso <bernardo@xx.network>"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-log = { version = "0.4.17", default-features = false  }
-
-# primitives
-sp-std = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+log = { workspace = true }
+codec = { workspace = true }
 
 # frame dependencies
-frame-support = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
-frame-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-runtime = { workspace = true }
+sp-io = { workspace = true }
+
+# staking
+pallet-staking = { workspace = true }
 
 # chainbridge
-chainbridge = { path = "../chainbridge", default-features = false }
+chainbridge = { workspace = true }
 
-# xx economics
-xx-economics = { path = "../xx-economics", default-features = false }
+# xx pallets
+xx-economics = { workspace = true }
+xx-staking-extension = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
-	"sp-std/std",
 	"log/std",
+	"codec/std",
 	"frame-support/std",
 	"frame-system/std",
+	"sp-runtime/std",
+	"sp-io/std",
+	"pallet-staking/std",
 	"chainbridge/std",
-	"xx-economics/std"
+	"xx-economics/std",
+	"xx-staking-extension/std"
 ]
-try-runtime = ["frame-support/try-runtime"]
+try-runtime = ["frame-support/try-runtime", "sp-runtime/try-runtime"]

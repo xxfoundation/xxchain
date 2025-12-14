@@ -9,7 +9,7 @@ use super::*;
 
 use super::mock::RuntimeEvent;
 
-use frame_support::dispatch::DispatchError;
+use sp_runtime::{DispatchError, BuildStorage};
 use frame_support::{assert_noop, assert_ok};
 
 
@@ -57,7 +57,8 @@ fn transfer_native_insufficient_balance_for_fee_and_amount_fails() {
 #[test]
 fn transfer_native_successful() {
     let amount: u64 = 1000;
-    new_test_ext(&[(ACCOUNT_A, amount + SWAP_FEE), (FEE_DESTINATION, 0)]).execute_with(|| {
+    let existential_deposit: u64 = 1;  // Must match ExistentialDeposit in mock
+    new_test_ext(&[(ACCOUNT_A, amount + SWAP_FEE), (FEE_DESTINATION, existential_deposit)]).execute_with(|| {
         assert_ok!(Bridge::whitelist_chain(RuntimeOrigin::root(), TEST_DESTINATION_CHAIN));
         assert_ok!(
             Swap::transfer_native(
@@ -68,11 +69,11 @@ fn transfer_native_successful() {
             )
         );
         // fee transferred to fee destination
-        assert_eq!(Balances::free_balance(FEE_DESTINATION), SWAP_FEE);
+        assert_eq!(Balances::free_balance(FEE_DESTINATION), existential_deposit + SWAP_FEE);
         // amount transferred to bridge account
         assert_eq!(Balances::free_balance(Bridge::account_id()), amount);
         // bridge emits FungibleTransfer event
-        expect_event(bridge::RawEvent::FungibleTransfer(
+        expect_event(bridge::Event::FungibleTransfer(
             TEST_DESTINATION_CHAIN,
             1, // nonce
             NativeTokenId::get(), // resource ID
@@ -104,7 +105,8 @@ fn transfer_fails_for_non_bridge_origin() {
 #[test]
 fn transfer_successful_with_bridge_origin() {
     let amount: u64 = 1000;
-    new_test_ext(&[(Bridge::account_id(), amount), (ACCOUNT_A, 0)]).execute_with(|| {
+    let existential_deposit: u64 = 1;  // Must match ExistentialDeposit in mock
+    new_test_ext(&[(Bridge::account_id(), amount + existential_deposit), (ACCOUNT_A, existential_deposit)]).execute_with(|| {
         assert_ok!(
             Swap::transfer(
                 RuntimeOrigin::signed(Bridge::account_id()),
@@ -113,8 +115,8 @@ fn transfer_successful_with_bridge_origin() {
             )
         );
         // amount transferred from bridge account to account A
-        assert_eq!(Balances::free_balance(&Bridge::account_id()), 0);
-        assert_eq!(Balances::free_balance(&ACCOUNT_A), amount);
+        assert_eq!(Balances::free_balance(&Bridge::account_id()), existential_deposit);
+        assert_eq!(Balances::free_balance(&ACCOUNT_A), existential_deposit + amount);
     })
 }
 
@@ -149,7 +151,7 @@ fn set_swap_fee_successful_with_admin_origin() {
         // amount transferred from bridge account to account A
         assert_eq!(Swap::swap_fee(), fee);
         // fee change event emitted
-        expect_event(swap::RawEvent::FeeChanged(fee));
+        expect_event(swap::Event::FeeChanged(fee));
     })
 }
 
@@ -184,7 +186,7 @@ fn set_fee_destination_successful_with_admin_origin() {
         // amount transferred from bridge account to account A
         assert_eq!(Swap::fee_destination().unwrap(), dest);
         // fee change event emitted
-        expect_event(swap::RawEvent::FeeDestinationChanged(dest));
+        expect_event(swap::Event::FeeDestinationChanged(dest));
     })
 }
 
@@ -273,16 +275,16 @@ fn sucessful_transfer_proposal() {
         );
 
         assert_events(vec![
-            RuntimeEvent::Bridge(bridge::RawEvent::VoteFor(TEST_DESTINATION_CHAIN, prop_id, RELAYER_A)),
-            RuntimeEvent::Bridge(bridge::RawEvent::VoteAgainst(TEST_DESTINATION_CHAIN, prop_id, RELAYER_B)),
-            RuntimeEvent::Bridge(bridge::RawEvent::VoteFor(TEST_DESTINATION_CHAIN, prop_id, RELAYER_C)),
-            RuntimeEvent::Bridge(bridge::RawEvent::ProposalApproved(TEST_DESTINATION_CHAIN, prop_id)),
+            RuntimeEvent::Bridge(bridge::Event::VoteFor(TEST_DESTINATION_CHAIN, prop_id, RELAYER_A)),
+            RuntimeEvent::Bridge(bridge::Event::VoteAgainst(TEST_DESTINATION_CHAIN, prop_id, RELAYER_B)),
+            RuntimeEvent::Bridge(bridge::Event::VoteFor(TEST_DESTINATION_CHAIN, prop_id, RELAYER_C)),
+            RuntimeEvent::Bridge(bridge::Event::ProposalApproved(TEST_DESTINATION_CHAIN, prop_id)),
             RuntimeEvent::Balances(balances::Event::Transfer {
                 from: Bridge::account_id(),
                 to: ACCOUNT_A,
                 amount: amount,
             }),
-            RuntimeEvent::Bridge(bridge::RawEvent::ProposalSucceeded(TEST_DESTINATION_CHAIN, prop_id)),
+            RuntimeEvent::Bridge(bridge::Event::ProposalSucceeded(TEST_DESTINATION_CHAIN, prop_id)),
         ]);
     })
 }
@@ -293,8 +295,8 @@ fn sucessful_transfer_proposal() {
 
 #[test]
 fn config_sets_expected_storage_items() {
-    let mut t = frame_system::GenesisConfig::default()
-        .build_storage::<Test>()
+    let mut t = frame_system::GenesisConfig::<Test>::default()
+        .build_storage()
         .unwrap();
 
     let initial_bridge_balance = 100;

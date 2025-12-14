@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
+
 pub mod cmix;
 pub mod weights;
 
@@ -11,73 +13,70 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
-use frame_support::traits::{EnsureOrigin};
+use alloc::vec::Vec;
+
+use frame_support::traits::{EnsureOrigin, RewardsReporter};
 use frame_support::{
-    decl_event, decl_error, decl_module, decl_storage,
-    dispatch::{DispatchResult, DispatchClass, Pays}, ensure,
+    dispatch::{DispatchClass, DispatchResult, Pays},
+    ensure,
 };
 
 use frame_system::{ensure_root, ensure_signed};
 pub use weights::WeightInfo;
-use sp_std::prelude::*;
+use xx_staking_extension::StakingExtension;
 
-pub trait Config: frame_system::Config + pallet_staking::Config {
-    /// The Event type.
-    type RuntimeEvent: From<Event<Self>> + Into<<Self as frame_system::Config>::RuntimeEvent>;
-
-    /// The origin that is allowed to modify cmix variables.
-    type CmixVariablesOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-    /// The admin origin for the pallet (Tech Committee unanimity).
-    type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-    /// Weight information for extrinsics in this pallet.
-    type WeightInfo: WeightInfo;
+/// Trait for cMix protocol integration with staking
+/// This was previously part of the forked pallet-staking, now defined locally
+pub trait CmixHandler {
+    /// Get block points for current era
+    fn get_block_points() -> u32;
+    /// Called at the end of each era
+    fn end_era();
 }
 
-decl_storage! {
-    trait Store for Module<T: Config> as XXCmix {
-
-        /// Cmix software hashes
-        pub CmixHashes get(fn cmix_hashes) config(): cmix::SoftwareHashes<T::Hash>;
-
-        /// Highest block number that AdminOrigin is allowed to change cmix hashes
-        pub AdminPermission get(fn admin_permission) config(): T::BlockNumber;
-
-        /// Scheduling server account
-        pub SchedulingAccount get(fn scheduling_account): Option<T::AccountId>;
-
-        /// Cmix user ephemeral reception IDs address space size in bits
-        pub CmixAddressSpace get(fn cmix_address_space) config(): u8;
-
-        /// Next cmix variables
-        pub NextCmixVariables get(fn next_cmix_variables): Option<cmix::Variables>;
-
-        /// Current cmix variables
-        pub CmixVariables get(fn cmix_variables) config(): cmix::Variables;
+/// Default implementation for chains that don't use cMix
+pub struct DefaultCmixHandler;
+impl CmixHandler for DefaultCmixHandler {
+    fn get_block_points() -> u32 {
+        20 // default block points
     }
-
-    add_extra_genesis {
-        config(scheduling_account): Option<T::AccountId>;
-
-        build(|config: &GenesisConfig<T>| {
-            // Set scheduling account
-            if let Some(acct) = &config.scheduling_account {
-                <SchedulingAccount<T>>::put(acct);
-            }
-        });
-    }
+    fn end_era() {}
 }
 
-decl_event! {
-    pub enum Event<T> where
-        <T as frame_system::Config>::BlockNumber,
-    {
+pub use pallet::*;
 
+#[frame_support::pallet]
+pub mod pallet {
+    use super::*;
+    use frame_support::pallet_prelude::*;
+    use frame_system::pallet_prelude::*;
+
+    #[pallet::pallet]
+    #[pallet::without_storage_info]
+    pub struct Pallet<T>(_);
+
+    #[pallet::config]
+    pub trait Config: frame_system::Config + pallet_staking::Config + xx_staking_extension::Config {
+        /// The Event type.
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+        /// The origin that is allowed to modify cmix variables.
+        type CmixVariablesOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+        /// The admin origin for the pallet (Tech Committee unanimity).
+        type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
+    }
+
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    pub enum Event<T: Config> {
         /// Cmix hashes updated
         CmixHashesUpdated,
         /// Admin permission updated
-        AdminPermissionUpdated(BlockNumber),
+        AdminPermissionUpdated(BlockNumberFor<T>),
         /// Scheduling server account updated
         SchedulingAccountUpdated,
         /// Cmix variables updated
@@ -89,52 +88,103 @@ decl_event! {
         /// Cmix points deduction data submitted to chain
         CmixPointsDeducted,
     }
-}
 
-decl_error! {
-	pub enum Error for Module<T: Config> {
+    #[pallet::error]
+    pub enum Error<T> {
         /// AdminOrigin is not allowed to modify cmix hashes
         AdminPermissionExpired,
         /// Must be scheduling server account to call this function
         MustBeScheduling,
-	}
-}
+    }
 
-decl_module! {
-	pub struct Module<T: Config> for enum Call where origin: T::RuntimeOrigin {
+    /// Cmix software hashes
+    #[pallet::storage]
+    #[pallet::getter(fn cmix_hashes)]
+    pub type CmixHashes<T: Config> =
+        StorageValue<_, cmix::SoftwareHashes<T::Hash>, ValueQuery>;
 
-        type Error = Error<T>;
+    /// Highest block number that AdminOrigin is allowed to change cmix hashes
+    #[pallet::storage]
+    #[pallet::getter(fn admin_permission)]
+    pub type AdminPermission<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
 
-        fn deposit_event() = default;
+    /// Scheduling server account
+    #[pallet::storage]
+    #[pallet::getter(fn scheduling_account)]
+    pub type SchedulingAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
 
+    /// Cmix user ephemeral reception IDs address space size in bits
+    #[pallet::storage]
+    #[pallet::getter(fn cmix_address_space)]
+    pub type CmixAddressSpace<T> = StorageValue<_, u8, ValueQuery>;
+
+    /// Next cmix variables
+    #[pallet::storage]
+    #[pallet::getter(fn next_cmix_variables)]
+    pub type NextCmixVariables<T> = StorageValue<_, cmix::Variables, OptionQuery>;
+
+    /// Current cmix variables
+    #[pallet::storage]
+    #[pallet::getter(fn cmix_variables)]
+    pub type CmixVariables<T> = StorageValue<_, cmix::Variables, ValueQuery>;
+
+    #[pallet::genesis_config]
+    #[derive(frame_support::DefaultNoBound)]
+    pub struct GenesisConfig<T: Config> {
+        pub cmix_hashes: cmix::SoftwareHashes<T::Hash>,
+        pub admin_permission: BlockNumberFor<T>,
+        pub scheduling_account: Option<T::AccountId>,
+        pub cmix_address_space: u8,
+        pub cmix_variables: cmix::Variables,
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+        fn build(&self) {
+            CmixHashes::<T>::put(&self.cmix_hashes);
+            AdminPermission::<T>::put(&self.admin_permission);
+            CmixAddressSpace::<T>::put(self.cmix_address_space);
+            CmixVariables::<T>::put(&self.cmix_variables);
+
+            // Set scheduling account
+            if let Some(acct) = &self.scheduling_account {
+                SchedulingAccount::<T>::put(acct);
+            }
+        }
+    }
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
         /// Set cmix software hashes
         ///
         /// The dispatch origin must be AdminOrigin.
         /// Furthermore, this call is only allowed if current block is lower than `AdminPermission`.
-        ///
-        /// # <weight>
-        /// - O(1) insert
-        /// # </weight>
-        #[weight = <T as Config>::WeightInfo::set_cmix_hashes()]
-        pub fn set_cmix_hashes(origin, hashes: cmix::SoftwareHashes<T::Hash>) {
+        #[pallet::call_index(0)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_cmix_hashes())]
+        pub fn set_cmix_hashes(
+            origin: OriginFor<T>,
+            hashes: cmix::SoftwareHashes<T::Hash>,
+        ) -> DispatchResult {
             Self::ensure_admin(origin)?;
             Self::ensure_admin_allowed_cmix_hashes()?;
-            <CmixHashes<T>>::put(hashes);
-            Self::deposit_event(RawEvent::CmixHashesUpdated);
+            CmixHashes::<T>::put(hashes);
+            Self::deposit_event(Event::CmixHashesUpdated);
+            Ok(())
         }
 
         /// Set scheduling server account
         ///
         /// The dispatch origin must be AdminOrigin.
-        ///
-        /// # <weight>
-        /// - O(1) insert
-        /// # </weight>
-        #[weight = <T as Config>::WeightInfo::set_scheduling_account()]
-        pub fn set_scheduling_account(origin, who: T::AccountId) {
+        #[pallet::call_index(1)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_scheduling_account())]
+        pub fn set_scheduling_account(
+            origin: OriginFor<T>,
+            who: T::AccountId,
+        ) -> DispatchResult {
             Self::ensure_admin(origin)?;
-            <SchedulingAccount<T>>::put(who);
-            Self::deposit_event(RawEvent::SchedulingAccountUpdated);
+            SchedulingAccount::<T>::put(who);
+            Self::deposit_event(Event::SchedulingAccountUpdated);
+            Ok(())
         }
 
         /// Set next cmix variables
@@ -143,73 +193,74 @@ decl_module! {
         /// The new variables will be stored in `NextCmixVariables`.
         /// Then, at the beginning of the next era, `NextCmixVariables` is emptied and the value
         /// is written to `CmixVariables`.
-        ///
-        /// # <weight>
-        /// - O(1) insert
-        /// # </weight>
-        #[weight = <T as Config>::WeightInfo::set_next_cmix_variables()]
-        pub fn set_next_cmix_variables(origin, variables: cmix::Variables) {
+        #[pallet::call_index(2)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_next_cmix_variables())]
+        pub fn set_next_cmix_variables(
+            origin: OriginFor<T>,
+            variables: cmix::Variables,
+        ) -> DispatchResult {
             Self::ensure_cmix_variables(origin)?;
-            NextCmixVariables::put(variables);
+            NextCmixVariables::<T>::put(variables);
+            Ok(())
         }
 
         /// Submit cmix performance points
         ///
         /// `data` is a vector of tuples of (account, points)
         /// The dispatch origin must be `SchedulingAccount`
-        ///
-        /// # <weight>
-        /// - DB Weight: n reads and n writes where n is the length of the data vector
-        /// # </weight>
-        #[weight = (
-			<T as Config>::WeightInfo::submit_cmix_points(data.len() as u32),
-			DispatchClass::Operational,
-			Pays::No
-		)]
-        pub fn submit_cmix_points(origin, data: Vec<(T::AccountId, u32)>) {
+        #[pallet::call_index(3)]
+        #[pallet::weight((
+            <T as Config>::WeightInfo::submit_cmix_points(data.len() as u32),
+            DispatchClass::Operational,
+            Pays::No
+        ))]
+        pub fn submit_cmix_points(
+            origin: OriginFor<T>,
+            data: Vec<(T::AccountId, u32)>,
+        ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(Self::is_scheduling(who), Error::<T>::MustBeScheduling);
             Self::reward_cmix_points(data);
-            Self::deposit_event(RawEvent::CmixPointsAdded);
+            Self::deposit_event(Event::CmixPointsAdded);
+            Ok(())
         }
 
         /// Submit cmix performance points deductions
         ///
         /// `data` is a vector of tuples of (account, points)
         /// The dispatch origin must be `SchedulingAccount`
-        ///
-        /// # <weight>
-        /// - DB Weight: n reads and n writes where n is the length of the data vector
-        /// # </weight>
-        #[weight = (
+        #[pallet::call_index(4)]
+        #[pallet::weight((
             <T as Config>::WeightInfo::submit_cmix_deductions(data.len() as u32),
-			DispatchClass::Operational,
-			Pays::No
-		)]
-        pub fn submit_cmix_deductions(origin, data: Vec<(T::AccountId, u32)>) {
+            DispatchClass::Operational,
+            Pays::No
+        ))]
+        pub fn submit_cmix_deductions(
+            origin: OriginFor<T>,
+            data: Vec<(T::AccountId, u32)>,
+        ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(Self::is_scheduling(who), Error::<T>::MustBeScheduling);
             Self::deduct_cmix_points(data);
-            Self::deposit_event(RawEvent::CmixPointsDeducted);
+            Self::deposit_event(Event::CmixPointsDeducted);
+            Ok(())
         }
 
         /// Set cmix address space size
         ///
         /// The dispatch origin must be `SchedulingAccount`
-        ///
-        /// # <weight>
-        /// - O(1) insert
-        /// # </weight>
-        #[weight = (
+        #[pallet::call_index(5)]
+        #[pallet::weight((
             <T as Config>::WeightInfo::set_cmix_address_space(),
-			DispatchClass::Operational,
-			Pays::No
-		)]
-        pub fn set_cmix_address_space(origin, size: u8) {
+            DispatchClass::Operational,
+            Pays::No
+        ))]
+        pub fn set_cmix_address_space(origin: OriginFor<T>, size: u8) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(Self::is_scheduling(who), Error::<T>::MustBeScheduling);
-            CmixAddressSpace::put(size);
-            Self::deposit_event(RawEvent::CmixAddressSpaceUpdated);
+            CmixAddressSpace::<T>::put(size);
+            Self::deposit_event(Event::CmixAddressSpaceUpdated);
+            Ok(())
         }
 
         /// Set admin permission
@@ -218,21 +269,21 @@ decl_module! {
         /// will be allowed to call the `set_cmix_hashes` function.
         /// It is expected that `permission` will be modified by Democracy
         /// in 6-month periods.
-        ///
-        /// # <weight>
-        /// - O(1) insert
-        /// # </weight>
-        #[weight = <T as Config>::WeightInfo::set_admin_permission()]
-        pub fn set_admin_permission(origin, permission: T::BlockNumber) {
+        #[pallet::call_index(6)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_admin_permission())]
+        pub fn set_admin_permission(
+            origin: OriginFor<T>,
+            permission: BlockNumberFor<T>,
+        ) -> DispatchResult {
             ensure_root(origin)?;
-            <AdminPermission<T>>::put(permission);
-            Self::deposit_event(RawEvent::AdminPermissionUpdated(permission));
+            AdminPermission::<T>::put(permission);
+            Self::deposit_event(Event::AdminPermissionUpdated(permission));
+            Ok(())
         }
-	}
+    }
 }
 
-impl<T: Config> Module<T> {
-
+impl<T: Config> Pallet<T> {
     /// Check if origin is admin
     fn ensure_admin(o: T::RuntimeOrigin) -> DispatchResult {
         <T as Config>::AdminOrigin::try_origin(o)
@@ -244,14 +295,14 @@ impl<T: Config> Module<T> {
     /// Checks if admin is allowed to modify cmix hashes
     fn ensure_admin_allowed_cmix_hashes() -> DispatchResult {
         let block = <frame_system::Pallet<T>>::block_number();
-        let permission = <AdminPermission<T>>::get();
+        let permission = AdminPermission::<T>::get();
         ensure!(permission >= block, Error::<T>::AdminPermissionExpired);
         Ok(())
     }
 
     /// Check if given account is scheduling server
     fn is_scheduling(who: T::AccountId) -> bool {
-        if let Some(sched) = <SchedulingAccount<T>>::get() {
+        if let Some(sched) = SchedulingAccount::<T>::get() {
             who == sched
         } else {
             false
@@ -268,37 +319,31 @@ impl<T: Config> Module<T> {
 
     /// Add cmix points to staking era rewards
     pub fn reward_cmix_points(data: Vec<(T::AccountId, u32)>) {
-        <pallet_staking::Pallet<T>>::reward_by_ids(data)
+        <pallet_staking::Pallet<T> as RewardsReporter<_>>::reward_by_ids(data)
     }
 
     /// Deduct cmix points from staking era rewards
+    /// Uses xx-staking-extension wrapper pallet to track deductions separately
+    /// from the upstream pallet-staking's ErasRewardPoints.
     pub fn deduct_cmix_points(data: Vec<(T::AccountId, u32)>) {
-        <pallet_staking::Pallet<T>>::deduct_by_ids(data)
+        <xx_staking_extension::Pallet<T> as StakingExtension<T::AccountId>>::deduct_by_ids(data)
     }
 }
 
-/// Implement EndEraHandler trait
-impl<T: Config> pallet_staking::CmixHandler for Module<T> {
-
+/// Implement CmixHandler trait
+impl<T: Config> CmixHandler for Pallet<T> {
     fn get_block_points() -> u32 {
-        let variables = CmixVariables::get();
-        variables.get_block_points()
+        CmixVariables::<T>::get().get_block_points()
     }
 
     fn end_era() {
         // Update cmix variables if next ones are set
-        if let Some(next) = NextCmixVariables::take() {
-            CmixVariables::put(next);
-            Self::deposit_event(RawEvent::CmixVariablesUpdated);
+        if let Some(next) = NextCmixVariables::<T>::take() {
+            CmixVariables::<T>::put(next);
+            Self::deposit_event(Event::CmixVariablesUpdated);
         }
     }
 }
 
-// Manual implementation of WhitelistedStorageKeys for runtime benchmarks
-#[cfg(feature = "runtime-benchmarks")]
-impl<T: Config> frame_support::traits::WhitelistedStorageKeys for Module<T> {
-    fn whitelisted_storage_keys() -> frame_support::sp_std::vec::Vec<frame_benchmarking::TrackedStorageKey> {
-        use frame_support::sp_std::vec;
-        vec![]
-    }
-}
+// Type alias for backwards compatibility
+pub type Module<T> = Pallet<T>;

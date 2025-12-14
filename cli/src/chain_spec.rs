@@ -18,17 +18,15 @@
 
 //! Substrate chain configurations.
 
-use sc_chain_spec::{ChainSpecExtension, ChainType, ChainSpec};
+use sc_chain_spec::{ChainSpecExtension, ChainType};
 use sp_core::{Pair, Public, sr25519};
 use serde::{Serialize, Deserialize};
 
-#[cfg(feature = "xxnetwork")]
 pub use xxnetwork_runtime as xxnetwork;
-#[cfg(feature = "canary")]
-pub use canary_runtime as canary;
 use runtime_common::constants::currency::UNITS;
-use hex_literal::hex;
-use grandpa_primitives::{AuthorityId as GrandpaId};
+use frame_support::PalletId;
+use sp_runtime::traits::AccountIdConversion;
+use sp_consensus_grandpa::{AuthorityId as GrandpaId};
 use sp_consensus_babe::{AuthorityId as BabeId};
 use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -53,73 +51,12 @@ pub struct Extensions {
 	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
 }
 
-/// A dummy `ChainSpec` for when a given runtime feature is disabled.
-pub type DummyChainSpec = sc_service::GenericChainSpec<(), Extensions>;
-
 /// The `ChainSpec` parameterized for the `xxnetwork` runtime.
-#[cfg(feature = "xxnetwork")]
-pub type XXNetworkChainSpec = sc_service::GenericChainSpec<xxnetwork::GenesisConfig, Extensions>;
+pub type XXNetworkChainSpec = sc_service::GenericChainSpec<Extensions>;
 
-/// A dummy `ChainSpec` parameterized for the `xxnetwork` runtime, for when the feature is disabled.
-#[cfg(not(feature = "xxnetwork"))]
-pub type XXNetworkChainSpec = DummyChainSpec;
-
-/// The `ChainSpec` parameterized for the `canary` runtime.
-#[cfg(feature = "canary")]
-pub type CanaryChainSpec = sc_service::GenericChainSpec<canary::GenesisConfig, Extensions>;
-
-/// A dummy `ChainSpec` parameterized for the `canary` runtime, for when the feature is disabled.
-#[cfg(not(feature = "canary"))]
-pub type CanaryChainSpec = DummyChainSpec;
-
-/// Genesis config for `xxnetwork` mainnet
-#[cfg(feature = "xxnetwork")]
+/// Genesis config for `xxnetwork` mainnet - loads from JSON
 pub fn xxnetwork_config() -> Result<XXNetworkChainSpec, String> {
 	XXNetworkChainSpec::from_json_bytes(&include_bytes!("../res/xxnetwork.json")[..])
-}
-
-/// Genesis config for `canary` testnet
-#[cfg(feature = "canary")]
-pub fn canary_config() -> Result<CanaryChainSpec, String> {
-	CanaryChainSpec::from_json_bytes(&include_bytes!("../res/canary.json")[..])
-}
-
-/// Can be called for a `Configuration` to identify which network the configuration targets.
-pub trait IdentifyVariant {
-	/// Returns if this is a configuration for the `xxnetwork` network.
-	fn is_xxnetwork(&self) -> bool;
-
-	/// Returns if this is a configuration for the `canary` network.
-	fn is_canary(&self) -> bool;
-}
-
-impl IdentifyVariant for Box<dyn ChainSpec> {
-	fn is_xxnetwork(&self) -> bool {
-		self.id().starts_with("xxnetwork")
-	}
-	fn is_canary(&self) -> bool {
-		self.id().starts_with("canary")
-	}
-}
-
-#[cfg(feature = "xxnetwork")]
-fn xxnetwork_session_keys(
-	grandpa: GrandpaId,
-	babe: BabeId,
-	im_online: ImOnlineId,
-	authority_discovery: AuthorityDiscoveryId,
-) -> xxnetwork::SessionKeys {
-	xxnetwork::SessionKeys { grandpa, babe, im_online, authority_discovery }
-}
-
-#[cfg(feature = "canary")]
-fn canary_session_keys(
-	grandpa: GrandpaId,
-	babe: BabeId,
-	im_online: ImOnlineId,
-	authority_discovery: AuthorityDiscoveryId,
-) -> canary::SessionKeys {
-	canary::SessionKeys { grandpa, babe, im_online, authority_discovery }
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -155,394 +92,137 @@ pub fn authority_keys_from_seed(seed: &str) -> (
 	)
 }
 
-/// Helper function to create GenesisConfig for testing of the `canary` network
-#[cfg(feature = "canary")]
-pub fn canary_testnet_genesis(
-	initial_authorities: Vec<(
-		AccountId,
-		AccountId,
-		GrandpaId,
-		BabeId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-	)>,
-	initial_nominators: Vec<AccountId>,
-	endowed_accounts: Option<Vec<AccountId>>,
-) -> canary::GenesisConfig {
-	let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
-		vec![
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			get_account_id_from_seed::<sr25519::Public>("Bob"),
-			get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			get_account_id_from_seed::<sr25519::Public>("Dave"),
-			get_account_id_from_seed::<sr25519::Public>("Eve"),
-			get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-			get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-		]
-	});
-	// endow all authorities and nominators.
-	initial_authorities.iter().map(|x| &x.0).chain(initial_nominators.iter()).for_each(|x| {
-		if !endowed_accounts.contains(&x) {
-			endowed_accounts.push(x.clone())
-		}
-	});
-
-	// stakers: all validators and nominators.
-	let mut rng = rand::thread_rng();
-	let stakers = initial_authorities
-		.iter()
-		.enumerate()
-		.map(|(i, x)| (x.0.clone(), x.1.clone(), STASH, canary::StakerStatus::Validator(Some(Hash::repeat_byte(i as u8)))))
-		.chain(initial_nominators.iter().map(|x| {
-			use rand::{seq::SliceRandom, Rng};
-			let limit = (runtime_common::MaxNominations::get() as usize).min(initial_authorities.len());
-			let count = rng.gen::<usize>() % limit;
-			let nominations = initial_authorities
-				.as_slice()
-				.choose_multiple(&mut rng, count)
-				.into_iter()
-				.map(|choice| choice.0.clone())
-				.collect::<Vec<_>>();
-			(x.clone(), x.clone(), STASH, canary::StakerStatus::Nominator(nominations))
-		}))
-		.collect::<Vec<_>>();
-
-	let num_endowed_accounts = endowed_accounts.len();
-
-	const ENDOWMENT: Balance = 10_000_000 * UNITS;
-	const STASH: Balance = ENDOWMENT / 1000;
-
-	canary::GenesisConfig {
-		system: canary::SystemConfig {
-			code: canary::wasm_binary_unwrap().to_vec(),
-		},
-		balances: canary::BalancesConfig {
-			balances: endowed_accounts.iter().cloned()
-				.map(|x| (x, ENDOWMENT))
-				.collect()
-		},
-		session: canary::SessionConfig {
-			keys: initial_authorities.iter().map(|x| {
-				(x.0.clone(), x.0.clone(), canary_session_keys(
-					x.2.clone(),
-					x.3.clone(),
-					x.4.clone(),
-					x.5.clone(),
-				))
-			}).collect::<Vec<_>>(),
-		},
-		staking: canary::StakingConfig {
-			validator_count: initial_authorities.len() as u32 * 2,
-			minimum_validator_count: initial_authorities.len() as u32,
-			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			slash_reward_fraction: Perbill::from_percent(10),
-			stakers,
-			.. Default::default()
-		},
-		democracy: canary::DemocracyConfig::default(),
-		elections: canary::ElectionsConfig {
-			members: endowed_accounts.iter()
-						.take((num_endowed_accounts + 1) / 2)
-						.cloned()
-						.map(|member| (member, STASH))
-						.collect(),
-		},
-		council: canary::CouncilConfig::default(),
-		technical_committee: canary::TechnicalCommitteeConfig {
-			members: endowed_accounts.iter()
-						.take((num_endowed_accounts + 1) / 2)
-						.cloned()
-						.collect(),
-			phantom: Default::default(),
-		},
-		babe: canary::BabeConfig {
-			authorities: vec![],
-			epoch_config: Some(canary::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		im_online: canary::ImOnlineConfig {
-			keys: vec![],
-		},
-		authority_discovery: canary::AuthorityDiscoveryConfig {
-			keys: vec![],
-		},
-		grandpa: canary::GrandpaConfig {
-			authorities: vec![],
-		},
-		technical_membership: Default::default(),
-		treasury: Default::default(),
-		vesting: Default::default(),
-		swap: canary::SwapConfig {
-			swap_fee: 1 * UNITS,
-			fee_destination: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
-			chains: vec![1],
-			relayers: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-			resources: vec![
-				 // SHA2_256("xx coin") [0:31] | 0x00
-				(hex!["26c3ecba0b7cea7c131a6aedf4774f96216318a2ae74926cd0e01832a0b0b500"],
-				 // Swap.transfer method
-				 hex!["537761702e7472616e73666572"].iter().cloned().collect())
-			],
-			threshold: 1,
-			balance: 100 * UNITS,
-		},
-		xx_cmix: canary::XXCmixConfig {
-			admin_permission: 0,
-			cmix_address_space: 18,
-			cmix_hashes: Default::default(),
-			scheduling_account: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
-			cmix_variables: Default::default(),
-		},
-		xx_economics: canary::XXEconomicsConfig {
-			balance: 10 * UNITS,
-			inflation_params: Default::default(),
-			interest_points: vec![Default::default()],
-			ideal_stake_rewards: 10 * UNITS,
-			liquidity_rewards: 100 * UNITS,
-		},
-		xx_custody: canary::XXCustodyConfig {
-			team_allocations: vec![],
-			custodians: vec![],
-		},
-		xx_public: Default::default(),
-		assets: Default::default(),
-	}
-}
-
-#[cfg(feature = "canary")]
-fn canary_development_config_genesis() -> canary::GenesisConfig {
-	canary_testnet_genesis(
-		vec![
-			authority_keys_from_seed("Alice"),
-		],
-		vec![],
-		None,
-	)
-}
-
-/// `canary` development config (single validator Alice)
-#[cfg(feature = "canary")]
-pub fn canary_development_config() -> CanaryChainSpec {
-	CanaryChainSpec::from_genesis(
-		"canary Development",
-		"canary_dev",
-		ChainType::Development,
-		canary_development_config_genesis,
-		vec![],
-		None,
-		None,
-		None,
-		None,
-		Default::default(),
-	)
-}
-
-/// Helper function to create GenesisConfig for testing of `xxnetwork`
-#[cfg(feature = "xxnetwork")]
-pub fn xxnetwork_testnet_genesis(
-	initial_authorities: Vec<(
-		AccountId,
-		AccountId,
-		GrandpaId,
-		BabeId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-	)>,
-	initial_nominators: Vec<AccountId>,
-	endowed_accounts: Option<Vec<AccountId>>,
-) -> xxnetwork::GenesisConfig {
-	let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
-		vec![
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			get_account_id_from_seed::<sr25519::Public>("Bob"),
-			get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			get_account_id_from_seed::<sr25519::Public>("Dave"),
-			get_account_id_from_seed::<sr25519::Public>("Eve"),
-			get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-			get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-		]
-	});
-	// endow all authorities and nominators.
-	initial_authorities.iter().map(|x| &x.0).chain(initial_nominators.iter()).for_each(|x| {
-		if !endowed_accounts.contains(&x) {
-			endowed_accounts.push(x.clone())
-		}
-	});
-
-	// stakers: all validators and nominators.
-	let mut rng = rand::thread_rng();
-	let stakers = initial_authorities
-		.iter()
-		.enumerate()
-		.map(|(i, x)| (x.0.clone(), x.1.clone(), STASH, xxnetwork::StakerStatus::Validator(Some(Hash::repeat_byte(i as u8)))))
-		.chain(initial_nominators.iter().map(|x| {
-			use rand::{seq::SliceRandom, Rng};
-			let limit = (runtime_common::MaxNominations::get() as usize).min(initial_authorities.len());
-			let count = rng.gen::<usize>() % limit;
-			let nominations = initial_authorities
-				.as_slice()
-				.choose_multiple(&mut rng, count)
-				.into_iter()
-				.map(|choice| choice.0.clone())
-				.collect::<Vec<_>>();
-			(x.clone(), x.clone(), STASH, xxnetwork::StakerStatus::Nominator(nominations))
-		}))
-		.collect::<Vec<_>>();
-
-	let num_endowed_accounts = endowed_accounts.len();
-
-	const ENDOWMENT: Balance = 10_000_000 * UNITS;
-	const STASH: Balance = ENDOWMENT / 1000;
-	const TEAM_ALLOCATION: Balance = 10_000_000 * UNITS;
-
-	xxnetwork::GenesisConfig {
-		system: xxnetwork::SystemConfig {
-			code: xxnetwork::wasm_binary_unwrap().to_vec(),
-		},
-		balances: xxnetwork::BalancesConfig {
-			balances: endowed_accounts.iter().cloned()
-				.map(|x| (x, ENDOWMENT))
-				.collect()
-		},
-		session: xxnetwork::SessionConfig {
-			keys: initial_authorities.iter().map(|x| {
-				(x.0.clone(), x.0.clone(), xxnetwork_session_keys(
-					x.2.clone(),
-					x.3.clone(),
-					x.4.clone(),
-					x.5.clone(),
-				))
-			}).collect::<Vec<_>>(),
-		},
-		staking: xxnetwork::StakingConfig {
-			validator_count: initial_authorities.len() as u32 * 2,
-			minimum_validator_count: initial_authorities.len() as u32,
-			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			slash_reward_fraction: Perbill::from_percent(10),
-			stakers,
-			.. Default::default()
-		},
-		democracy: xxnetwork::DemocracyConfig::default(),
-		elections: xxnetwork::ElectionsConfig {
-			members: endowed_accounts.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.map(|member| (member, STASH))
-				.collect(),
-		},
-		council: xxnetwork::CouncilConfig::default(),
-		technical_committee: xxnetwork::TechnicalCommitteeConfig {
-			members: endowed_accounts.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
-			phantom: Default::default(),
-		},
-		babe: xxnetwork::BabeConfig {
-			authorities: vec![],
-			epoch_config: Some(xxnetwork_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		im_online: xxnetwork::ImOnlineConfig {
-			keys: vec![],
-		},
-		authority_discovery: xxnetwork::AuthorityDiscoveryConfig {
-			keys: vec![],
-		},
-		grandpa: xxnetwork::GrandpaConfig {
-			authorities: vec![],
-		},
-		technical_membership: Default::default(),
-		treasury: Default::default(),
-		vesting: Default::default(),
-		claims: Default::default(),
-		swap: xxnetwork::SwapConfig {
-			swap_fee: 1 * UNITS,
-			fee_destination: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
-			chains: vec![1],
-			relayers: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-			resources: vec![
-				// SHA2_256("xx coin") [0:31] | 0x00
-				(hex!["26c3ecba0b7cea7c131a6aedf4774f96216318a2ae74926cd0e01832a0b0b500"],
-				 // Swap.transfer method
-				 hex!["537761702e7472616e73666572"].iter().cloned().collect())
-			],
-			threshold: 1,
-			balance: 100 * UNITS,
-		},
-		xx_cmix: xxnetwork::XXCmixConfig {
-			admin_permission: 0,
-			cmix_address_space: 18,
-			cmix_hashes: Default::default(),
-			scheduling_account: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
-			cmix_variables: Default::default(),
-		},
-		xx_economics: xxnetwork::XXEconomicsConfig {
-			balance: 10 * UNITS,
-			inflation_params: Default::default(),
-			interest_points: vec![Default::default()],
-			ideal_stake_rewards: 10 * UNITS,
-			liquidity_rewards: 100 * UNITS,
-		},
-		xx_custody: xxnetwork::XXCustodyConfig {
-			team_allocations: vec![
-				(get_account_id_from_seed::<sr25519::Public>("Alice"), TEAM_ALLOCATION),
-				(get_account_id_from_seed::<sr25519::Public>("Bob"), TEAM_ALLOCATION),
-			],
-			custodians: vec![
-				(get_account_id_from_seed::<sr25519::Public>("Charlie"), ())
-			],
-		},
-		xx_betanet_rewards: xxnetwork::XXBetanetRewardsConfig {
-			accounts: vec![
-				(
-					get_account_id_from_seed::<sr25519::Public>("Charlie"),
-					Default::default()
-				)
-			]
-		},
-		xx_public: xxnetwork::XXPublicConfig {
-			testnet_manager: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
-			sale_manager: Some(get_account_id_from_seed::<sr25519::Public>("Bob")),
-			testnet_balance: 1000000 * UNITS,
-			sale_balance: 1000000 * UNITS,
-		},
-		assets: Default::default(),
-	}
-}
-
-#[cfg(feature = "xxnetwork")]
-fn xxnetwork_development_config_genesis() -> xxnetwork::GenesisConfig {
-	xxnetwork_testnet_genesis(
-		vec![
-			authority_keys_from_seed("Alice"),
-		],
-		vec![],
-		None,
-	)
+fn xxnetwork_session_keys(
+	grandpa: GrandpaId,
+	babe: BabeId,
+	im_online: ImOnlineId,
+	authority_discovery: AuthorityDiscoveryId,
+) -> xxnetwork::SessionKeys {
+	xxnetwork::SessionKeys { grandpa, babe, im_online, authority_discovery }
 }
 
 /// `xxnetwork` development config (single validator Alice)
-#[cfg(feature = "xxnetwork")]
+/// Uses JSON genesis config builder pattern
 pub fn xxnetwork_development_config() -> XXNetworkChainSpec {
-	XXNetworkChainSpec::from_genesis(
-		"xx network Development",
-		"xxnetwork_dev",
-		ChainType::Development,
-		xxnetwork_development_config_genesis,
-		vec![],
-		None,
-		None,
-		None,
-		None,
-		Default::default(),
-	)
+	let wasm_binary = xxnetwork::wasm_binary_unwrap();
+
+	XXNetworkChainSpec::builder(wasm_binary, Extensions::default())
+		.with_name("xxnetwork Development")
+		.with_id("xxnetwork-dev")
+		.with_chain_type(ChainType::Development)
+		.with_genesis_config_patch(development_genesis_config_patch())
+		.build()
+}
+
+/// Generate the genesis config patch for development network
+fn development_genesis_config_patch() -> serde_json::Value {
+	use serde_json::json;
+
+	let initial_authorities = vec![
+		authority_keys_from_seed("Alice"),
+	];
+
+	let endowed_accounts: Vec<AccountId> = vec![
+		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		get_account_id_from_seed::<sr25519::Public>("Bob"),
+		get_account_id_from_seed::<sr25519::Public>("Charlie"),
+		get_account_id_from_seed::<sr25519::Public>("Dave"),
+		get_account_id_from_seed::<sr25519::Public>("Eve"),
+		get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+		get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+	];
+
+	// Pallet accounts derived from PalletId (needed for benchmarks)
+	let treasury_account: AccountId = PalletId(*b"xx/trsry").into_account_truncating();
+	let bridge_account: AccountId = PalletId(*b"cb/bridg").into_account_truncating();
+
+	const ENDOWMENT: Balance = 10_000_000 * UNITS;
+	const STASH: Balance = ENDOWMENT / 1000;
+	// Large balance for distribution benchmarks (100 distributions * 25 units each * safety margin)
+	const DISTRIBUTION_BALANCE: Balance = 1_000_000 * UNITS;
+
+	// Build balances including pallet accounts for benchmarks
+	let mut balances: Vec<(AccountId, Balance)> = endowed_accounts.iter()
+		.map(|x| (x.clone(), ENDOWMENT))
+		.collect();
+	// Fund treasury account for pallet_treasury benchmarks
+	balances.push((treasury_account.clone(), ENDOWMENT));
+	// Fund bridge account for swap benchmarks
+	balances.push((bridge_account.clone(), ENDOWMENT));
+	// Note: xx_public pallet accounts are funded via xxPublic genesis config (testnetBalance, saleBalance)
+
+	json!({
+		"balances": {
+			"balances": balances
+		},
+		"session": {
+			"keys": initial_authorities.iter().map(|x| {
+				(
+					x.0.clone(),
+					x.0.clone(),
+					xxnetwork_session_keys(
+						x.2.clone(),
+						x.3.clone(),
+						x.4.clone(),
+						x.5.clone(),
+					)
+				)
+			}).collect::<Vec<_>>()
+		},
+		"staking": {
+			"validatorCount": initial_authorities.len() as u32 * 2,
+			"minimumValidatorCount": initial_authorities.len() as u32,
+			"invulnerables": initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			"slashRewardFraction": Perbill::from_percent(10),
+			"stakers": initial_authorities.iter()
+				.map(|x| (x.0.clone(), x.1.clone(), STASH, "Validator"))
+				.collect::<Vec<_>>()
+		},
+		"elections": {
+			"members": endowed_accounts.iter()
+				.take(1)
+				.map(|member| (member.clone(), STASH))
+				.collect::<Vec<_>>()
+		},
+		"technicalCommittee": {
+			"members": endowed_accounts.iter()
+				.take(3)
+				.cloned()
+				.collect::<Vec<_>>()
+		},
+		"babe": {
+			"epochConfig": xxnetwork::BABE_GENESIS_EPOCH_CONFIG
+		},
+		"swap": {
+			"feeDestination": get_account_id_from_seed::<sr25519::Public>("Alice"),
+			"swapFee": 0u32
+		},
+		"xxCmix": {
+			"adminPermission": u32::MAX,
+			"schedulingAccount": get_account_id_from_seed::<sr25519::Public>("Alice")
+		},
+		"xxEconomics": {
+			"liquidityRewards": 0u128,
+			"balance": 0u128
+		},
+		"xxCustody": {
+			"custodians": vec![
+				(get_account_id_from_seed::<sr25519::Public>("Alice"), ()),
+				(get_account_id_from_seed::<sr25519::Public>("Bob"), ()),
+				(get_account_id_from_seed::<sr25519::Public>("Charlie"), ()),
+			],
+			"teamAllocations": vec![
+				(get_account_id_from_seed::<sr25519::Public>("Dave"), ENDOWMENT),
+				(get_account_id_from_seed::<sr25519::Public>("Eve"), ENDOWMENT),
+				(get_account_id_from_seed::<sr25519::Public>("Ferdie"), ENDOWMENT),
+			]
+		},
+		"xxPublic": {
+			"testnetManager": get_account_id_from_seed::<sr25519::Public>("Alice"),
+			"testnetBalance": DISTRIBUTION_BALANCE,
+			"saleManager": get_account_id_from_seed::<sr25519::Public>("Alice"),
+			"saleBalance": DISTRIBUTION_BALANCE
+		}
+	})
 }

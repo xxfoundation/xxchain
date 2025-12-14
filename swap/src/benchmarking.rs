@@ -5,7 +5,7 @@ use super::*;
 
 use frame_benchmarking::{benchmarks, account, impl_benchmark_test_suite, BenchmarkError};
 use frame_system::RawOrigin;
-use frame_support::dispatch::UnfilteredDispatchable;
+use frame_support::traits::UnfilteredDispatchable;
 use sp_runtime::traits::Bounded;
 
 const SEED: u32 = 0;
@@ -41,6 +41,11 @@ benchmarks!{
 		let amount = T::Currency::minimum_balance() * 10u32.into();
 		let dest = account_from_index::<T>(1);
 		let origin = T::BridgeOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
+
+		// Fund the bridge account for the transfer
+		let bridge_account = chainbridge::Pallet::<T>::account_id();
+		let initial_balance = <<T as Config>::Currency as Currency<T::AccountId>>::Balance::max_value();
+		T::Currency::make_free_balance_be(&bridge_account, initial_balance);
 
 		let call = Call::<T>::transfer {
 			to: dest,

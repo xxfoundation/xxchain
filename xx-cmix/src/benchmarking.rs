@@ -6,6 +6,7 @@ use crate::Module as XXCmix;
 
 use frame_benchmarking::{benchmarks, account, impl_benchmark_test_suite};
 use frame_system::RawOrigin;
+use frame_system::pallet_prelude::BlockNumberFor;
 use frame_support::traits::OriginTrait;
 use sp_runtime::traits::Bounded;
 
@@ -25,7 +26,7 @@ fn set_scheduler<T: Config>(account: T::AccountId) {
 
 // sets the admin permission way into the future so we can call certain extrinsics
 fn set_admin<T: Config>() {
-	let block = T::BlockNumber::max_value();
+	let block = BlockNumberFor::<T>::max_value();
 	XXCmix::<T>::set_admin_permission(T::RuntimeOrigin::root(), block).ok();
 }
 
@@ -82,7 +83,7 @@ benchmarks!{
 
 	set_admin_permission {
 
-	}: _(RawOrigin::Root, T::BlockNumber::max_value())
+	}: _(RawOrigin::Root, BlockNumberFor::<T>::max_value())
  	
 }
 

@@ -2,11 +2,12 @@
 // by ChainSafe Systems Aug 2021
 
 use super::*;
-use crate::Module as XXCustody;
+use crate::Pallet as XXCustody;
 
 use frame_benchmarking::{benchmarks, account, impl_benchmark_test_suite};
 use frame_system::RawOrigin;
-use sp_runtime::traits::Bounded;
+use frame_support::traits::Currency;
+use sp_runtime::traits::{Bounded, SaturatedConversion};
 
 const SEED: u32 = 0;
 
@@ -16,6 +17,11 @@ fn custodian<T: Config>() -> T::AccountId { <Custodians<T>>::iter().next().expec
 
 fn account_from_index<T: Config>(index: u32) -> T::AccountId {
 	account("x", index, SEED)
+}
+
+/// Get minimum balance from the Currency trait
+fn min_balance<T: Config>() -> BalanceOf<T> {
+	<<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::minimum_balance()
 }
 
 benchmarks!{
@@ -31,14 +37,14 @@ benchmarks!{
 		let proxy = account_from_index::<T>(11);
 
 		let info = XXCustody::<T>::team_accounts(team.clone()).unwrap();
-		let amount = <<T as pallet_staking::Config>::Currency as Currency<T::AccountId>>::minimum_balance() * 10u32.into();
+		let amount: pallet_staking::BalanceOf<T> = min_balance::<T>().saturated_into::<u128>().saturating_mul(10).saturated_into();
 
 		// set up a bond
 		XXCustody::<T>::custody_bond(
 			RawOrigin::Signed(custodian.clone()).into(),
 			info.custody.clone(),
 			custodian.clone(),
-			<<T as pallet_staking::Config>::Currency as Currency<T::AccountId>>::minimum_balance() * 10u32.into()
+			amount
 		).expect("Failed to bond allocation");
 
 		// set up a proxy
@@ -57,7 +63,7 @@ benchmarks!{
 	custody_bond {
 		let team = team_member::<T>();
 		let custodian = custodian::<T>();
-		let amount = <<T as pallet_staking::Config>::Currency as Currency<T::AccountId>>::minimum_balance() * 10u32.into();
+		let amount: pallet_staking::BalanceOf<T> = min_balance::<T>().saturated_into::<u128>().saturating_mul(10).saturated_into();
 		let info = XXCustody::<T>::team_accounts(team.clone()).unwrap();
 
 	}: _(RawOrigin::Signed(custodian.clone()), info.custody, custodian.clone(), amount)
@@ -68,7 +74,7 @@ benchmarks!{
 		let custodian = custodian::<T>();
 
 		let info = XXCustody::<T>::team_accounts(team.clone()).unwrap();
-		let amount = <<T as pallet_staking::Config>::Currency as Currency<T::AccountId>>::minimum_balance() * 10u32.into();
+		let amount: pallet_staking::BalanceOf<T> = min_balance::<T>().saturated_into::<u128>().saturating_mul(10).saturated_into();
 
 		// set up an initial bond
 		XXCustody::<T>::custody_bond(
@@ -86,7 +92,7 @@ benchmarks!{
 		let new_controller = account_from_index::<T>(55);
 
 		let info = XXCustody::<T>::team_accounts(team.clone()).unwrap();
-		let amount = <<T as pallet_staking::Config>::Currency as Currency<T::AccountId>>::minimum_balance() * 10u32.into();
+		let amount: pallet_staking::BalanceOf<T> = min_balance::<T>().saturated_into::<u128>().saturating_mul(10).saturated_into();
 
 		// set up an initial bond with the custodian as the controller
 		XXCustody::<T>::custody_bond(
@@ -113,12 +119,12 @@ benchmarks!{
 
 		let info = XXCustody::<T>::team_accounts(team.clone()).unwrap();
 
-		// allocate some balance to pay the lockup fee (this may not be required later)
-		let balance = <<T as pallet_staking::Config>::Currency as Currency<T::AccountId>>::Balance::max_value();
-		<<T as pallet_staking::Config>::Currency as Currency<T::AccountId>>::make_free_balance_be(&team, balance);
+		// allocate some balance to pay the lockup fee
+		let balance = BalanceOf::<T>::max_value();
+		<T as Config>::Currency::make_free_balance_be(&team, balance);
 
-		// run to the end of the custody period
-		frame_system::Pallet::<T>::set_block_number(T::CustodyDuration::get());
+		// run to the end of the governance custody period
+		frame_system::Pallet::<T>::set_block_number(T::GovernanceCustodyDuration::get() + 1u32.into());
 
 	}: _(RawOrigin::Signed(team.clone()), proxy)
 

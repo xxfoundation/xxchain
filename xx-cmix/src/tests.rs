@@ -32,7 +32,7 @@ fn set_cmix_hashes_can_call_with_admin_during_permission_period() {
             assert_eq!(XXCmix::cmix_hashes(), new_hashes,);
             assert_eq!(
                 *xx_cmix_events().last().unwrap(),
-                RawEvent::CmixHashesUpdated
+                Event::CmixHashesUpdated
             );
         });
 }
@@ -68,7 +68,7 @@ fn set_scheduling_account_can_call_with_admin_during_permission_period() {
             assert_eq!(XXCmix::scheduling_account().unwrap(), new_scheduling_account);
             assert_eq!(
                 *xx_cmix_events().last().unwrap(),
-                RawEvent::SchedulingAccountUpdated
+                Event::SchedulingAccountUpdated
             );
         });
 }
@@ -108,7 +108,7 @@ fn set_next_cmix_variables_can_call_with_cmix_vars_origin() {
         assert_eq!(XXCmix::cmix_variables(), new_variables);
         assert_eq!(
             *xx_cmix_events().last().unwrap(),
-            RawEvent::CmixVariablesUpdated
+            Event::CmixVariablesUpdated
         );
     });
 }
@@ -151,27 +151,38 @@ fn cmix_points_adds_remove_points_in_staking_pallet() {
                 RuntimeOrigin::signed(scheduling),
                 vec![(a, second_addition)]
             ),);
+            // Note: In the new SDK, validators don't start with an implicit +1 point
             assert_eq!(
                 Staking::eras_reward_points(active_era()).individual.get(&a),
-                Some(&(first_addition + second_addition + 1))
+                Some(&(first_addition + second_addition))
             );
 
-            // now deduct. Should not go below 1
+            // now deduct. In the new SDK, deductions are stored separately
+            // instead of modifying ErasRewardPoints directly
             assert_ok!(XXCmix::submit_cmix_deductions(
                 RuntimeOrigin::signed(scheduling),
                 vec![(a, 99)]
             ),);
+            // Check that deductions were recorded in xx-staking-extension
+            let deductions = XXStakingExtension::eras_deduction_points(active_era());
+            let deducted_points = deductions.individual.get(&a).copied().unwrap_or(0);
+            // Net points = reward_points - deduction_points
+            // The deduction of 99 should be recorded. Since we only have 43 points,
+            // the net would be max(1, 43 - 99) = 1 when used in rewards calculation.
+            // But the deduction storage just records the deduction request.
+            assert_eq!(deducted_points, 99);
+            // Original reward points unchanged in new architecture
             assert_eq!(
                 Staking::eras_reward_points(active_era()).individual.get(&a),
-                Some(&1)
+                Some(&(first_addition + second_addition))
             );
 
             assert_eq!(
                 xx_cmix_events(),
                 vec![
-                    RawEvent::CmixPointsAdded,
-                    RawEvent::CmixPointsAdded,
-                    RawEvent::CmixPointsDeducted
+                    Event::CmixPointsAdded,
+                    Event::CmixPointsAdded,
+                    Event::CmixPointsDeducted
                 ]
             );
         });

@@ -17,17 +17,14 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{chain_spec, service, Cli, Subcommand};
-use sc_cli::{Result, SubstrateCli, RuntimeVersion, ChainSpec};
+use sc_cli::{Result, SubstrateCli};
+use sc_consensus_grandpa as grandpa;
 use sc_service::PartialComponents;
-use crate::chain_spec::IdentifyVariant;
 use frame_benchmarking_cli::*;
 use std::sync::Arc;
 
-#[cfg(feature = "try-runtime")]
-use {
-	runtime_common::constants::time::SLOT_DURATION,
-	try_runtime_cli::block_building_info::substrate_info,
-};
+// try-runtime-cli integration temporarily disabled
+// Use standalone try-runtime tool for testing migrations
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -59,47 +56,15 @@ impl SubstrateCli for Cli {
 			"xxnetwork"
 		} else { id };
 		Ok(match id {
-			#[cfg(feature = "xxnetwork")]
 			"xxnetwork" => Box::new(chain_spec::xxnetwork_config()?),
-			#[cfg(feature = "xxnetwork")]
 			"xxnetwork-dev" | "dev" => Box::new(chain_spec::xxnetwork_development_config()),
-			#[cfg(feature = "canary")]
-			"canary" => Box::new(chain_spec::canary_config()?),
-			#[cfg(feature = "canary")]
-			"canary-dev" => Box::new(chain_spec::canary_development_config()),
 			path => {
 				let path = std::path::PathBuf::from(path);
-
-				let chain_spec = Box::new(chain_spec::XXNetworkChainSpec::from_json_file(path.clone())?) as Box<dyn sc_chain_spec::ChainSpec>;
-
-				// When the file name starts with the name of one of the known chains,
-				// we use the chain spec for the specific chain.
-				if chain_spec.is_canary() {
-					Box::new(chain_spec::CanaryChainSpec::from_json_file(path)?)
-				} else {
-					chain_spec
-				}
+				Box::new(chain_spec::XXNetworkChainSpec::from_json_file(path)?)
 			},
 		})
 	}
 
-	fn native_runtime_version(spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		#[cfg(feature = "canary")]
-		if spec.is_canary() {
-			return &chain_spec::canary::VERSION
-		}
-
-		#[cfg(not(feature = "canary"))]
-		let _ = spec;
-
-		#[cfg(feature = "xxnetwork")]
-		{
-			return &chain_spec::xxnetwork::VERSION
-		}
-
-		#[cfg(not(feature = "xxnetwork"))]
-		panic!("No runtime feature (xxnetwork, canary) is enabled")
-	}
 }
 
 /// Parse command line arguments into service configuration.
@@ -117,29 +82,12 @@ pub fn run() -> Result<()> {
 		},
 		Some(Subcommand::Inspect(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			#[cfg(feature = "canary")]
-			{
-				let chain_spec = &runner.config().chain_spec;
-				if chain_spec.is_canary() {
-					return runner.sync_run(|config|
-						cmd.run::<
-							chain_spec::canary::Block,
-							chain_spec::canary::RuntimeApi,
-							service::CanaryExecutorDispatch>(config)
-					)
-				};
-				#[cfg(not(feature = "xxnetwork"))]
-				return Err("Chain spec doesn't match canary runtime!".into())
-			}
-			#[cfg(feature = "xxnetwork")]
-			{
-				return runner.sync_run(|config|
-					cmd.run::<
-						chain_spec::xxnetwork::Block,
-						chain_spec::xxnetwork::RuntimeApi,
-						service::XXNetworkExecutorDispatch>(config)
-				)
-			}
+			runner.sync_run(|config|
+				cmd.run::<
+					chain_spec::xxnetwork::Block,
+					chain_spec::xxnetwork::RuntimeApi,
+					service::XXNetworkExecutorDispatch>(config)
+			)
 		},
 		Some(Subcommand::Benchmark(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
@@ -154,28 +102,12 @@ pub fn run() -> Result<()> {
 									.into(),
 							)
 						}
-						#[cfg(feature = "canary")]
-						{
-							let chain_spec = &config.chain_spec;
-							if chain_spec.is_canary() {
-								return cmd.run::<
-									chain_spec::canary::Block,
-									service::CanaryExecutorDispatch
-								>(config)
-							};
-							#[cfg(not(feature = "xxnetwork"))]
-							return Err("Chain spec doesn't match canary runtime!".into())
-						}
-						#[cfg(feature = "xxnetwork")]
-						{
-							cmd.run::<
-								chain_spec::xxnetwork::Block,
-								service::XXNetworkExecutorDispatch
-							>(config)
-						}
+						cmd.run_with_spec::<sp_runtime::traits::HashingFor<chain_spec::xxnetwork::Block>, ()>(
+							Some(config.chain_spec)
+						)
 					},
 					_ => {
-						return Err("Benchmark subcomamnd not supported".into())
+						return Err("Benchmark subcommand not supported".into())
 					}
 				}
 			})
@@ -190,99 +122,35 @@ pub fn run() -> Result<()> {
 		},
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			#[cfg(feature = "canary")]
-			{
-				let chain_spec = &runner.config().chain_spec;
-				if chain_spec.is_canary() {
-					return runner.async_run(|config| {
-						let PartialComponents { client, task_manager, import_queue, ..}
-							= service::new_partial::<service::CanaryRuntimeApi, service::CanaryExecutorDispatch>(&config)?;
-						Ok((cmd.run(client, import_queue), task_manager))
-					})
-				};
-				#[cfg(not(feature = "xxnetwork"))]
-				return Err("Chain spec doesn't match canary runtime!".into())
-			}
-			#[cfg(feature = "xxnetwork")]
-			{
-				return runner.async_run(|config| {
-					let PartialComponents { client, task_manager, import_queue, ..}
-						= service::new_partial::<service::XXNetworkRuntimeApi, service::XXNetworkExecutorDispatch>(&config)?;
-					Ok((cmd.run(client, import_queue), task_manager))
-				})
-			}
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, import_queue, ..}
+					= service::new_partial(&config)?;
+				Ok((cmd.run(client, import_queue), task_manager))
+			})
 		},
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			#[cfg(feature = "canary")]
-			{
-				let chain_spec = &runner.config().chain_spec;
-				if chain_spec.is_canary() {
-					return runner.async_run(|config| {
-						let PartialComponents { client, task_manager, ..}
-							= service::new_partial::<service::CanaryRuntimeApi, service::CanaryExecutorDispatch>(&config)?;
-						Ok((cmd.run(client, config.database), task_manager))
-					})
-				};
-				#[cfg(not(feature = "xxnetwork"))]
-				return Err("Chain spec doesn't match canary runtime!".into())
-			}
-			#[cfg(feature = "xxnetwork")]
-			{
-				return runner.async_run(|config| {
-					let PartialComponents { client, task_manager, ..}
-						= service::new_partial::<service::XXNetworkRuntimeApi, service::XXNetworkExecutorDispatch>(&config)?;
-					Ok((cmd.run(client, config.database), task_manager))
-				})
-			}
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, ..}
+					= service::new_partial(&config)?;
+				Ok((cmd.run(client, config.database), task_manager))
+			})
 		},
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			#[cfg(feature = "canary")]
-			{
-				let chain_spec = &runner.config().chain_spec;
-				if chain_spec.is_canary() {
-					return runner.async_run(|config| {
-						let PartialComponents { client, task_manager, ..}
-							= service::new_partial::<service::CanaryRuntimeApi, service::CanaryExecutorDispatch>(&config)?;
-						Ok((cmd.run(client, config.chain_spec), task_manager))
-					})
-				};
-				#[cfg(not(feature = "xxnetwork"))]
-				return Err("Chain spec doesn't match canary runtime!".into())
-			}
-			#[cfg(feature = "xxnetwork")]
-			{
-				return runner.async_run(|config| {
-					let PartialComponents { client, task_manager, ..}
-						= service::new_partial::<service::XXNetworkRuntimeApi, service::XXNetworkExecutorDispatch>(&config)?;
-					Ok((cmd.run(client, config.chain_spec), task_manager))
-				})
-			}
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, ..}
+					= service::new_partial(&config)?;
+				Ok((cmd.run(client, config.chain_spec), task_manager))
+			})
 		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			#[cfg(feature = "canary")]
-			{
-				let chain_spec = &runner.config().chain_spec;
-				if chain_spec.is_canary() {
-					return runner.async_run(|config| {
-						let PartialComponents { client, task_manager, import_queue, ..}
-							= service::new_partial::<service::CanaryRuntimeApi, service::CanaryExecutorDispatch>(&config)?;
-						Ok((cmd.run(client, import_queue), task_manager))
-					})
-				};
-				#[cfg(not(feature = "xxnetwork"))]
-				return Err("Chain spec doesn't match canary runtime!".into())
-			}
-			#[cfg(feature = "xxnetwork")]
-			{
-				return runner.async_run(|config| {
-					let PartialComponents { client, task_manager, import_queue, ..}
-						= service::new_partial::<service::XXNetworkRuntimeApi, service::XXNetworkExecutorDispatch>(&config)?;
-					Ok((cmd.run(client, import_queue), task_manager))
-				})
-			}
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, import_queue, ..}
+					= service::new_partial(&config)?;
+				Ok((cmd.run(client, import_queue), task_manager))
+			})
 		},
 		Some(Subcommand::PurgeChain(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
@@ -290,106 +158,24 @@ pub fn run() -> Result<()> {
 		},
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			#[cfg(feature = "canary")]
-			{
-				let chain_spec = &runner.config().chain_spec;
-				if chain_spec.is_canary() {
-					return runner.async_run(|config| {
-						let PartialComponents { client, task_manager, backend, ..}
-							= service::new_partial::<service::CanaryRuntimeApi, service::CanaryExecutorDispatch>(&config)?;
-						let aux_revert = Box::new(|client: Arc<service::FullClient::<service::CanaryRuntimeApi, service::CanaryExecutorDispatch>>, backend, blocks| {
-							sc_consensus_babe::revert(client.clone(), backend, blocks)?;
-							grandpa::revert(client, blocks)?;
-							Ok(())
-						});
-						Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
-					})
-				};
-				#[cfg(not(feature = "xxnetwork"))]
-				return Err("Chain spec doesn't match canary runtime!".into())
-			}
-			#[cfg(feature = "xxnetwork")]
-			{
-				return runner.async_run(|config| {
-					let PartialComponents { client, task_manager, backend, ..}
-						= service::new_partial::<service::XXNetworkRuntimeApi, service::XXNetworkExecutorDispatch>(&config)?;
-					let aux_revert = Box::new(|client: Arc<service::FullClient::<service::XXNetworkRuntimeApi, service::XXNetworkExecutorDispatch>>, backend, blocks| {
-						sc_consensus_babe::revert(client.clone(), backend, blocks)?;
-						grandpa::revert(client, blocks)?;
-						Ok(())
-					});
-					Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
-				})
-			}
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, backend, ..}
+					= service::new_partial(&config)?;
+				let aux_revert = Box::new(|client: Arc<service::FullClient>, backend, blocks| {
+					sc_consensus_babe::revert(client.clone(), backend, blocks)?;
+					grandpa::revert(client, blocks)?;
+					Ok(())
+				});
+				Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
+			})
 		},
-		#[cfg(feature = "try-runtime")]
-		Some(Subcommand::TryRuntime(cmd)) => {
-			use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
-			let runner = cli.create_runner(cmd)?;
-			let info_provider = substrate_info(SLOT_DURATION);
-			#[cfg(feature = "canary")]
-			{
-				let chain_spec = &runner.config().chain_spec;
-				if chain_spec.is_canary() {
-					return runner.async_run(|config| {
-						// we don't need any of the components of new_partial, just a runtime, or a task
-						// manager to do `async_run`.
-						let registry = config.prometheus_config.as_ref().map(|cfg| &cfg.registry);
-						let task_manager =
-							sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
-								.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
-
-						Ok((
-							cmd.run::<chain_spec::canary::Block, ExtendedHostFunctions<
-								sp_io::SubstrateHostFunctions,
-								<service::CanaryExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
-							>, _>(Some(info_provider)),
-							task_manager,
-						))
-					})
-				};
-				#[cfg(not(feature = "xxnetwork"))]
-				return Err("Chain spec doesn't match canary runtime!".into())
-			}
-			#[cfg(feature = "xxnetwork")]
-			{
-				return runner.async_run(|config| {
-					// we don't need any of the components of new_partial, just a runtime, or a task
-					// manager to do `async_run`.
-					let registry = config.prometheus_config.as_ref().map(|cfg| &cfg.registry);
-					let task_manager =
-						sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
-							.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
-
-					Ok((
-						cmd.run::<chain_spec::xxnetwork::Block, ExtendedHostFunctions<
-							sp_io::SubstrateHostFunctions,
-							<service::XXNetworkExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
-						>, _>(Some(info_provider)),
-						task_manager,
-					))
-				})
-			}
-		},
-		#[cfg(not(feature = "try-runtime"))]
-		Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the node. \
-				You can enable it with `--features try-runtime`."
+		Some(Subcommand::TryRuntime) => Err("TryRuntime CLI is temporarily disabled. \
+				Please use the standalone try-runtime tool from https://github.com/paritytech/try-runtime-cli \
+				with the built runtime WASM file."
 			.into()),
 		Some(Subcommand::ChainInfo(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			#[cfg(feature = "canary")]
-			{
-				let chain_spec = &runner.config().chain_spec;
-				if chain_spec.is_canary() {
-					return runner.sync_run(|config| cmd.run::<chain_spec::canary::Block>(&config))
-				}
-				#[cfg(not(feature = "xxnetwork"))]
-				return Err("Chain spec doesn't match canary runtime!".into())
-			}
-			#[cfg(feature = "xxnetwork")]
-			{
-				return runner.sync_run(|config| cmd.run::<chain_spec::xxnetwork::Block>(&config))
-			}
+			runner.sync_run(|config| cmd.run::<chain_spec::xxnetwork::Block>(&config))
 		},
 	}
 }

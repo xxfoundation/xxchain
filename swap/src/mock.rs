@@ -2,14 +2,12 @@
 
 use super::*;
 
-use frame_support::{parameter_types, PalletId};
-use frame_system::{self as system};
+use frame_support::{parameter_types, derive_impl, PalletId};
 use sp_core::hashing::blake2_128;
 use sp_core::H256;
 use sp_runtime::{
-    testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
-    Perbill,
+    Perbill, BuildStorage,
 };
 
 pub use crate::{self as swap, Config};
@@ -24,17 +22,17 @@ parameter_types! {
     pub const MaxLocks: u32 = 100;
 }
 
+type Block = frame_system::mocking::MockBlock<Test>;
+
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
     type BaseCallFilter = frame_support::traits::Everything;
     type RuntimeOrigin = RuntimeOrigin;
     type RuntimeCall = RuntimeCall;
-    type Index = u64;
-    type BlockNumber = u64;
     type Hash = H256;
     type Hashing = BlakeTwo256;
     type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
-    type Header = Header;
     type RuntimeEvent = RuntimeEvent;
     type BlockHashCount = BlockHashCount;
     type DbWeight = ();
@@ -49,12 +47,14 @@ impl frame_system::Config for Test {
     type SS58Prefix = ();
     type OnSetCode = ();
     type MaxConsumers = frame_support::traits::ConstU32<16>;
+    type Block = Block;
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: u64 = 0;
+    pub const ExistentialDeposit: u64 = 1;  // Must be > 0 in new SDK
 }
 
+#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
 impl pallet_balances::Config for Test {
     type Balance = u64;
     type DustRemoval = ();
@@ -65,6 +65,11 @@ impl pallet_balances::Config for Test {
     type WeightInfo = ();
     type MaxReserves = ();
     type ReserveIdentifier = [u8; 8];
+    type RuntimeHoldReason = ();
+    type RuntimeFreezeReason = ();
+    type FreezeIdentifier = ();
+    type MaxFreezes = ();
+    type DoneSlashHandler = ();
 }
 
 const PALLET_ID: PalletId = PalletId(*b"cb/bridg");
@@ -97,22 +102,15 @@ impl Config for Test {
     type WeightInfo = weights::SubstrateWeight<Self>;
 }
 
-pub type Block = sp_runtime::generic::Block<Header, UncheckedExtrinsic>;
-pub type UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic<u32, u64, RuntimeCall, ()>;
-
 pub type AccountId = <Test as frame_system::Config>::AccountId;
 pub type Balance = <Test as balances::Config>::Balance;
 
 frame_support::construct_runtime!(
-    pub enum Test where
-        Block = Block,
-        NodeBlock = Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
-        System: system::{Pallet, Call, Event<T>},
-        Balances: balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Bridge: bridge::{Pallet, Call, Storage, Event<T>},
-        Swap: swap::{Pallet, Call, Event<T>}
+    pub enum Test {
+        System: frame_system,
+        Balances: balances,
+        Bridge: bridge,
+        Swap: swap,
     }
 );
 
@@ -128,8 +126,8 @@ pub const RELAYER_THRESHOLD: u32 = 2;
 
 
 pub fn new_test_ext(initial_balances: &[(AccountId, Balance)]) -> sp_io::TestExternalities {
-    let mut t = frame_system::GenesisConfig::default()
-        .build_storage::<Test>()
+    let mut t = frame_system::GenesisConfig::<Test>::default()
+        .build_storage()
         .unwrap();
 
     swap::GenesisConfig::<Test> {
@@ -146,6 +144,7 @@ pub fn new_test_ext(initial_balances: &[(AccountId, Balance)]) -> sp_io::TestExt
 
     balances::GenesisConfig::<Test> {
         balances: initial_balances.to_vec(),
+        dev_accounts: None,
     }
     .assimilate_storage(&mut t)
     .unwrap();
@@ -156,7 +155,7 @@ pub fn new_test_ext(initial_balances: &[(AccountId, Balance)]) -> sp_io::TestExt
 }
 
 fn last_event() -> RuntimeEvent {
-    system::Pallet::<Test>::events()
+    frame_system::Pallet::<Test>::events()
         .pop()
         .map(|e| e.event)
         .expect("Event expected")
@@ -170,7 +169,7 @@ pub fn expect_event<E: Into<RuntimeEvent>>(e: E) {
 // Checks events against the latest. A contiguous set of events must be provided. They must
 // include the most recent event, but do not have to include every past event.
 pub fn assert_events(mut expected: Vec<RuntimeEvent>) {
-    let mut actual: Vec<RuntimeEvent> = system::Pallet::<Test>::events()
+    let mut actual: Vec<RuntimeEvent> = frame_system::Pallet::<Test>::events()
         .iter()
         .map(|e| e.event.clone())
         .collect();

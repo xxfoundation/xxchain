@@ -102,7 +102,7 @@ fn testnet_distribute_called_by_manager_works() {
 				XXPublic::testnet_distribute(
 				    RuntimeOrigin::signed(42),
 				    vec![
-				        TransferData::<AccountId, Balance, BlockNumber> {
+				        TransferData::<AccountId, Balance, u64> {
 				            destination: 10,
 				            amount: 100,
 				            schedules: None
@@ -148,7 +148,7 @@ fn sale_distribute_called_by_manager_works() {
 				XXPublic::sale_distribute(
 				    RuntimeOrigin::signed(43),
 				    vec![
-				        TransferData::<AccountId, Balance, BlockNumber> {
+				        TransferData::<AccountId, Balance, u64> {
 				            destination: 10,
 				            amount: 100,
 				            schedules: None
@@ -173,7 +173,7 @@ fn distributions_fail_when_not_enough_funds() {
 				XXPublic::testnet_distribute(
 				    RuntimeOrigin::signed(42),
 				    vec![
-				        TransferData::<AccountId, Balance, BlockNumber> {
+				        TransferData::<AccountId, Balance, u64> {
 				            destination: 10,
 				            amount: 1001,
 				            schedules: None
@@ -186,7 +186,7 @@ fn distributions_fail_when_not_enough_funds() {
 				XXPublic::sale_distribute(
 				    RuntimeOrigin::signed(43),
 				    vec![
-				        TransferData::<AccountId, Balance, BlockNumber> {
+				        TransferData::<AccountId, Balance, u64> {
 				            destination: 10,
 				            amount: 1001,
 				            schedules: None
@@ -208,12 +208,12 @@ fn testnet_distribution_with_vesting() {
 				XXPublic::testnet_distribute(
 				    RuntimeOrigin::signed(42),
 				    vec![
-				        TransferData::<AccountId, Balance, BlockNumber> {
+				        TransferData::<AccountId, Balance, u64> {
 				            destination: 10,
 				            amount: 200,
 				            schedules: Some(vec![(100, 1, 0)])
 				        },
-				        TransferData::<AccountId, Balance, BlockNumber> {
+				        TransferData::<AccountId, Balance, u64> {
 				            destination: 11,
 				            amount: 200,
 				            schedules: Some(vec![(100, 100, 100)])
@@ -253,12 +253,12 @@ fn sale_distribution_with_vesting() {
 				XXPublic::sale_distribute(
 				    RuntimeOrigin::signed(43),
 				    vec![
-				        TransferData::<AccountId, Balance, BlockNumber> {
+				        TransferData::<AccountId, Balance, u64> {
 				            destination: 10,
 				            amount: 200,
 				            schedules: Some(vec![(100, 1, 0)])
 				        },
-				        TransferData::<AccountId, Balance, BlockNumber> {
+				        TransferData::<AccountId, Balance, u64> {
 				            destination: 11,
 				            amount: 200,
 				            schedules: Some(vec![(100, 100, 100)])
@@ -299,12 +299,12 @@ fn distribute_to_account_with_existing_vesting() {
 				XXPublic::sale_distribute(
 				    RuntimeOrigin::signed(43),
 				    vec![
-				        TransferData::<AccountId, Balance, BlockNumber> {
+				        TransferData::<AccountId, Balance, u64> {
 				            destination: 12,
 				            amount: 200,
 				            schedules: Some(vec![(100, 1, 0), (100, 100, 100)])
 				        },
-				        TransferData::<AccountId, Balance, BlockNumber> {
+				        TransferData::<AccountId, Balance, u64> {
 				            destination: 13,
 				            amount: 200,
 				            schedules: Some(vec![(100, 100, 100)])

@@ -29,109 +29,112 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # third-party dependencies
 clap = { version = "4.0.9", features = ["derive"], optional = true }
-codec = { package = "parity-scale-codec", version = "3.0.0" }
-serde = { version = "1.0.136", features = ["derive"] }
-jsonrpsee = { version = "0.16.2", features = ["server"] }
+codec = { workspace = true, features = ["std"] }
+serde = { workspace = true, features = ["std", "derive"] }
+jsonrpsee = { version = "0.24", features = ["server"] }
 futures = "0.3.21"
-hex-literal = "0.3.4"
-log = "0.4.17"
+hex-literal = "0.4.1"
+log = { workspace = true, features = ["std"] }
 rand = "0.8"
 
 # primitives
-sp-authority-discovery = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-consensus-babe = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-grandpa-primitives = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", package = "sp-consensus-grandpa" }
-sp-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-core = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-runtime = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-timestamp = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-inherents = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-keyring = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-keystore = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-consensus = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-transaction-pool = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-transaction-storage-proof = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-block-builder = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-offchain = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-session = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-io = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sp-authority-discovery = { workspace = true, features = ["std"] }
+sp-consensus-babe = { workspace = true, features = ["std"] }
+sp-consensus-grandpa = { workspace = true, features = ["std"] }
+sp-api = { workspace = true, features = ["std"] }
+sp-core = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-timestamp = { workspace = true }
+sp-inherents = { workspace = true, features = ["std"] }
+sp-keyring = { workspace = true }
+sp-keystore = { workspace = true }
+sp-consensus = { workspace = true }
+sp-transaction-pool = { workspace = true, features = ["std"] }
+sp-block-builder = { workspace = true, features = ["std"] }
+sp-offchain = { workspace = true, features = ["std"] }
+sp-session = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
 
 # client dependencies
-sc-client-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-chain-spec = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-transaction-pool = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-transaction-pool-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-network = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-network-common = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus-slots = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus-babe = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-grandpa = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", package = "sc-consensus-grandpa" }
-sc-rpc = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-basic-authorship = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-service = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
-sc-telemetry = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-executor = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-authority-discovery = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-sync-state-rpc = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-sysinfo = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sc-client-api = { workspace = true }
+sc-chain-spec = { workspace = true }
+sc-consensus = { workspace = true }
+sc-transaction-pool = { workspace = true }
+sc-transaction-pool-api = { workspace = true }
+sc-network = { workspace = true }
+sc-network-common = { workspace = true }
+sc-network-sync = { workspace = true }
+sc-consensus-slots = { workspace = true }
+sc-consensus-babe = { workspace = true }
+sc-consensus-grandpa = { workspace = true }
+sc-rpc = { workspace = true }
+sc-sync-state-rpc = { workspace = true }
+sc-basic-authorship = { workspace = true }
+sc-service = { workspace = true, default-features = false }
+sc-telemetry = { workspace = true }
+sc-executor = { workspace = true }
+sc-authority-discovery = { workspace = true }
+sc-sysinfo = { workspace = true }
+sc-offchain = { workspace = true }
+sp-state-machine = { workspace = true, features = ["std"] }
 
 # frame dependencies
-frame-system = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-frame-system-rpc-runtime-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-transaction-payment = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-pallet-im-online = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", default-features = false }
+frame-support = { workspace = true, features = ["std"] }
+frame-system = { workspace = true, features = ["std"] }
+frame-system-rpc-runtime-api = { workspace = true, features = ["std"] }
+frame-benchmarking = { workspace = true, features = ["std"] }
+pallet-transaction-payment = { workspace = true, features = ["std"] }
+pallet-transaction-payment-rpc-runtime-api = { workspace = true, features = ["std"] }
+pallet-im-online = { workspace = true, features = ["std"] }
 
 # node-specific dependencies
-xxnetwork-runtime = { version = "0.2.6", path = "../runtime/xxnetwork", optional = true }
-canary-runtime = { version = "0.2.0", path = "../runtime/canary", optional = true }
-node-rpc = { version = "0.2.0", path = "../rpc" }
-node-primitives = { version = "0.2.0", path = "../primitives" }
-node-executor = { version = "0.2.0", path = "../executor" }
-runtime-common = { version = "0.2.0", path = "../runtime/common" }
+xxnetwork-runtime = { path = "../runtime/xxnetwork", optional = true }
+node-rpc = { path = "../rpc" }
+node-primitives = { workspace = true, features = ["std"] }
+node-executor = { path = "../executor" }
+runtime-common = { workspace = true, features = ["std"] }
 
 # CLI-specific dependencies
-sc-cli = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", optional = true }
-frame-benchmarking-cli = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", optional = true }
-node-inspect = { version = "0.2.0", optional = true, path = "../inspect" }
-try-runtime-cli = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", optional = true }
-serde_json = "1.0.85"
+sc-cli = { workspace = true, optional = true }
+frame-benchmarking-cli = { workspace = true, optional = true }
+node-inspect = { path = "../inspect", optional = true }
+# try-runtime-cli temporarily disabled - version conflict with polkadot-stable2509-2
+# try-runtime-cli = { workspace = true, optional = true }
+serde_json = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
-sc-keystore = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-client-db = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus-babe = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-consensus-epochs = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-service-test = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sc-block-builder = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-tracing = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
-sp-blockchain = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+sc-keystore = { workspace = true }
+sc-client-db = { workspace = true }
+sc-consensus = { workspace = true }
+sc-consensus-babe = { workspace = true }
+sc-consensus-epochs = { workspace = true }
+sc-block-builder = { workspace = true }
+sp-tracing = { workspace = true, features = ["std"] }
+sp-blockchain = { workspace = true }
 futures = "0.3.21"
 tempfile = "3.1.0"
 assert_cmd = "2.0.2"
-nix = "0.23"
-serde_json = "1.0"
+nix = { version = "0.27", features = ["signal"] }
+serde_json = { workspace = true, features = ["std"] }
 regex = "1.6.0"
-platforms = "2.0"
-soketto = "0.7.1"
-criterion = { version = "0.3.5", features = ["async_tokio"] }
+platforms = "3.0"
+soketto = "0.8"
+criterion = { version = "0.5", features = ["async_tokio"] }
 tokio = { version = "1.22.0", features = ["macros", "time", "parking_lot"] }
 tokio-util = { version = "0.7.4", features = ["compat"] }
 wait-timeout = "0.2"
-substrate-rpc-client = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+# substrate-rpc-client removed - no longer in polkadot-sdk
 
 [build-dependencies]
 clap = { version = "4.0.9", optional = true }
 clap_complete = { version = "4.0.2", optional = true }
-node-inspect = { version = "0.2.0", optional = true, path = "../inspect" }
-frame-benchmarking-cli = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", optional = true }
-substrate-build-script-utils = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", optional = true }
-substrate-frame-cli = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", optional = true }
-try-runtime-cli = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", optional = true }
-sc-cli = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6", optional = true }
-pallet-balances = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+node-inspect = { path = "../inspect", optional = true }
+frame-benchmarking-cli = { workspace = true, optional = true }
+substrate-build-script-utils = { workspace = true, optional = true }
+# substrate-frame-cli removed - no longer in polkadot-sdk
+# try-runtime-cli temporarily disabled - version conflict with polkadot-stable2509-2
+sc-cli = { workspace = true, optional = true }
+pallet-balances = { workspace = true, features = ["std"] }
 
 [features]
 default = ["cli", "xxnetwork"]
@@ -139,30 +142,22 @@ cli = [
 	"node-inspect",
 	"sc-cli",
 	"frame-benchmarking-cli",
-	"substrate-frame-cli",
 	"sc-service/rocksdb",
 	"clap",
 	"clap_complete",
 	"substrate-build-script-utils",
-	"try-runtime-cli",
 ]
 runtime-benchmarks = [
 	"xxnetwork-runtime/runtime-benchmarks",
-	"canary-runtime/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 ]
-# Enable features that allow the runtime to be tried and debugged. Name might be subject to change
-# in the near future.
 try-runtime = [
 	"xxnetwork-runtime/try-runtime",
-	"canary-runtime/try-runtime",
-	"try-runtime-cli/try-runtime",
+	# "try-runtime-cli" temporarily disabled - version conflict
 ]
 
 xxnetwork = ["xxnetwork-runtime", "node-executor/xxnetwork"]
-canary = ["canary-runtime", "node-executor/canary"]
 
 fast-runtime = [
 	"xxnetwork-runtime/fast-runtime",
-	"canary-runtime/fast-runtime",
 ]

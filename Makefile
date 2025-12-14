@@ -11,24 +11,12 @@ build-release:
 	@cargo build -p xxnetwork-cli --release
 
 #######################
-###  xx canary only ###
-#######################
-
-# Builds production ready xxnetwork-chain binary containing only canary runtime
-build-canary-prod:
-	@cargo build -p xxnetwork-cli --profile production --no-default-features --features cli,canary
-
-# Builds xxnetwork-chain binary containing only canary runtime
-build-canary-release:
-	@cargo build -p xxnetwork-cli --release --no-default-features --features cli,canary
-
-#######################
-###  both runtimes  ###
+###   build all     ###
 #######################
 
 # Builds all packages
 build:
-	@cargo build --release --features canary
+	@cargo build --release
 
 # Builds all packages with accelerated runtimes
 build-dev:
@@ -51,13 +39,10 @@ build-dev-try-runtime:
 ###  build runtimes ###
 #######################
 
-build-canary-runtime:
-	@SRTOOL_TAG="1.66.1" srtool build --package canary-runtime
-
 build-xxnetwork-runtime:
 	@SRTOOL_TAG="1.66.1" srtool build --package xxnetwork-runtime
 
-build-runtimes: build-canary-runtime build-xxnetwork-runtime
+build-runtimes: build-xxnetwork-runtime
 
 #######################
 ###      tests      ###

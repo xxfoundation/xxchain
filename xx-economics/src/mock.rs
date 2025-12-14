@@ -22,39 +22,31 @@ use crate as xx_economics;
 use crate::*;
 
 use frame_support::{
+    derive_impl,
     parameter_types,
     ord_parameter_types,
-    traits::{
-        OnUnbalanced,
-    },
-    weights::constants::RocksDbWeight,
+    traits::OnUnbalanced,
 };
-use frame_system::{EnsureSignedBy};
+use frame_system::EnsureSignedBy;
 use sp_runtime::{
-    testing::{Header, TestXt, H256},
     traits::IdentityLookup,
+    BuildStorage,
     Perbill,
 };
 
 
 /// The AccountId alias in this test module.
 pub(crate) type AccountId = u64;
-pub(crate) type AccountIndex = u64;
 pub(crate) type BlockNumber = u64;
 pub(crate) type Balance = u128;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
-    pub enum Test where
-        Block = Block,
-        NodeBlock = Block,
-        UncheckedExtrinsic = UncheckedExtrinsic,
-    {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        XXEconomics: xx_economics::{Pallet, Call, Storage, Event<T>, Config<T>},
+    pub enum Test {
+        System: frame_system,
+        Balances: pallet_balances,
+        XXEconomics: xx_economics,
     }
 );
 
@@ -68,63 +60,31 @@ parameter_types! {
     pub static Offset: BlockNumber = 0;
 }
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
-    type BaseCallFilter = frame_support::traits::Everything;
-    type BlockWeights = ();
-    type BlockLength = ();
-    type DbWeight = RocksDbWeight;
-    type RuntimeOrigin = RuntimeOrigin;
-    type Index = AccountIndex;
-    type BlockNumber = BlockNumber;
-    type RuntimeCall = RuntimeCall;
-    type Hash = H256;
-    type Hashing = ::sp_runtime::traits::BlakeTwo256;
+    type Block = Block;
     type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
-    type Header = Header;
-    type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = BlockHashCount;
-    type Version = ();
-    type PalletInfo = PalletInfo;
     type AccountData = pallet_balances::AccountData<Balance>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type SystemWeightInfo = ();
-    type SS58Prefix = ();
-    type OnSetCode = ();
-    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
+#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
 impl pallet_balances::Config for Test {
     type MaxLocks = MaxLocks;
     type Balance = Balance;
-    type RuntimeEvent = RuntimeEvent;
-    type DustRemoval = ();
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
-    type WeightInfo = ();
-    type MaxReserves = ();
-    type ReserveIdentifier = [u8; 8];
 }
 parameter_types! {
     pub const UncleGenerations: u64 = 0;
     pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(25);
 }
 
-pub struct MockCustodyHandler;
-
-impl pallet_staking::CustodyHandler<AccountId, Balance> for MockCustodyHandler {
-    fn is_custody_account(_: &AccountId) -> bool { false }
-    fn total_custody() -> Balance {
-        1000u128
-    }
-}
-
 pub const MOCK_TREASURY: &AccountId = &1337;
 pub const MILLISECONDS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
 
 // allows funds to be deposited in a mock treasury account
-pub struct MockTreasury<Test>(sp_std::marker::PhantomData<Test>);
+pub struct MockTreasury<Test>(core::marker::PhantomData<Test>);
 impl OnUnbalanced<NegativeImbalanceOf<Test>> for MockTreasury<Test> {
     fn on_nonzero_unbalanced(amount: NegativeImbalanceOf<Test>) {
         // add balance to mock treasury account
@@ -154,23 +114,12 @@ pub type TestAdminOrigin = EnsureSignedBy<AdminAccount, AccountId>;
 impl xx_economics::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
-    type CustodyHandler = MockCustodyHandler;
     type PublicAccountsHandler = MockPublicAccountsHandler;
     type RewardsPoolId = RewardsPoolId;
     type RewardRemainder = MockTreasury<Test>;
     type EraDuration = EraDuration;
     type AdminOrigin = TestAdminOrigin;
     type WeightInfo = weights::SubstrateWeight<Self>;
-}
-
-pub type Extrinsic = TestXt<RuntimeCall, ()>;
-
-impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
-where
-    RuntimeCall: From<LocalCall>,
-{
-    type OverarchingCall = RuntimeCall;
-    type Extrinsic = Extrinsic;
 }
 
 pub struct ExtBuilder {
@@ -215,8 +164,8 @@ impl ExtBuilder {
 
     pub fn build(self) -> sp_io::TestExternalities {
         sp_tracing::try_init_simple();
-        let mut storage = frame_system::GenesisConfig::default()
-            .build_storage::<Test>()
+        let mut storage = frame_system::GenesisConfig::<Test>::default()
+            .build_storage()
             .unwrap();
 
         xx_economics::GenesisConfig::<Test> {
@@ -233,7 +182,8 @@ impl ExtBuilder {
                 balances: vec![
                     (42, 1000),
                     (43, 1000),
-                ]
+                ],
+                ..Default::default()
             }.assimilate_storage(&mut storage).unwrap();
         }
 

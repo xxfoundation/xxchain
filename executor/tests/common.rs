@@ -15,6 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// NOTE: This module is only compiled when executor-tests feature is enabled.
+#![cfg(feature = "executor-tests")]
+
 use codec::{Encode, Decode};
 use frame_system::offchain::AppCrypto;
 use frame_support::Hashable;
@@ -38,12 +41,13 @@ use sc_executor::error::Result;
 
 use node_executor::XXNetworkExecutorDispatch;
 use xxnetwork_runtime::{
-	Header, Block, UncheckedExtrinsic, CheckedExtrinsic, Runtime, BuildStorage,
+	Header, Block, UncheckedExtrinsic, CheckedExtrinsic, Runtime, BuildStorage, SignedExtra,
 };
 use runtime_common::constants::currency::*;
-use node_primitives::{Hash, BlockNumber};
-use node_testing::keyring::*;
+use node_primitives::{AccountId, Hash, BlockNumber, Balance, Nonce};
 use sp_externalities::Externalities;
+use sp_keyring::AccountKeyring;
+use sp_io;
 
 pub const TEST_KEY_TYPE_ID: KeyTypeId = KeyTypeId(*b"test");
 
@@ -62,6 +66,38 @@ impl AppCrypto<MultiSigner, MultiSignature> for TestAuthorityId {
 	type RuntimeAppPublic = sr25519::AuthorityId;
 	type GenericSignature = Signature;
 	type GenericPublic = sp_core::sr25519::Public;
+}
+
+// Keyring helper functions (previously from node-testing)
+
+/// Alice's account id.
+pub fn alice() -> AccountId {
+	AccountKeyring::Alice.into()
+}
+
+/// Bob's account id.
+pub fn bob() -> AccountId {
+	AccountKeyring::Bob.into()
+}
+
+/// Charlie's account id.
+pub fn charlie() -> AccountId {
+	AccountKeyring::Charlie.into()
+}
+
+/// Returns transaction extra.
+pub fn signed_extra(nonce: Nonce, extra_fee: Balance) -> SignedExtra {
+	(
+		frame_system::CheckNonZeroSender::new(),
+		frame_system::CheckSpecVersion::new(),
+		frame_system::CheckTxVersion::new(),
+		frame_system::CheckGenesis::new(),
+		frame_system::CheckEra::from(sp_runtime::generic::Era::mortal(256, 0)),
+		frame_system::CheckNonce::from(nonce),
+		frame_system::CheckWeight::new(),
+		pallet_transaction_payment::ChargeTransactionPayment::from(extra_fee),
+		claims::PrevalidateAttests::new(),
+	)
 }
 
 /// The wasm runtime code.
@@ -83,8 +119,29 @@ pub const TRANSACTION_VERSION: u32 = xxnetwork_runtime::VERSION.transaction_vers
 
 pub type TestExternalities<H> = CoreTestExternalities<H>;
 
+/// Sign given `CheckedExtrinsic`.
 pub fn sign(xt: CheckedExtrinsic) -> UncheckedExtrinsic {
-	node_testing::keyring::sign(xt, SPEC_VERSION, TRANSACTION_VERSION, GENESIS_HASH)
+	match xt.signed {
+		Some((signed, extra)) => {
+			let payload = (xt.function, extra.clone(), SPEC_VERSION, TRANSACTION_VERSION, GENESIS_HASH, GENESIS_HASH);
+			let key = AccountKeyring::from_account_id(&signed).unwrap();
+			let signature = payload.using_encoded(|b| {
+				if b.len() > 256 {
+					key.sign(&sp_io::hashing::blake2_256(b))
+				} else {
+					key.sign(b)
+				}
+			}).into();
+			UncheckedExtrinsic {
+				signature: Some((sp_runtime::MultiAddress::Id(signed), signature, extra)),
+				function: payload.0,
+			}
+		}
+		None => UncheckedExtrinsic {
+			signature: None,
+			function: xt.function,
+		},
+	}
 }
 
 pub fn default_transfer_call() -> pallet_balances::Call<Runtime> {

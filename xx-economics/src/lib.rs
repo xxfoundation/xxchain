@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
+
 pub mod rewards;
 pub mod inflation;
 pub mod weights;
@@ -12,105 +14,76 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
-use frame_support::traits::{Currency, OnUnbalanced, Get, EnsureOrigin};
-use frame_support::{
-    decl_event, decl_module, decl_storage,
-    PalletId, dispatch::DispatchResult,
-};
+use alloc::vec::Vec;
+
+use frame_support::traits::{Currency, Get, EnsureOrigin, OnUnbalanced};
+use frame_support::{dispatch::DispatchResult, PalletId};
 pub use weights::WeightInfo;
-use sp_runtime::traits::{AccountIdConversion};
-use frame_system::{ensure_root};
+use frame_system::ensure_root;
 
-
-use sp_std::prelude::*;
+pub use pallet::*;
 
 pub type BalanceOf<T> =
-<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+    <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-type PositiveImbalanceOf<T> = <<T as Config>::Currency as Currency<
-    <T as frame_system::Config>::AccountId, >>::PositiveImbalance;
+pub type PositiveImbalanceOf<T> = <<T as Config>::Currency as Currency<
+    <T as frame_system::Config>::AccountId,
+>>::PositiveImbalance;
 
-type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
-    <T as frame_system::Config>::AccountId, >>::NegativeImbalance;
+pub type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
+    <T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
 
-pub trait Config: frame_system::Config {
+#[frame_support::pallet]
+pub mod pallet {
+    use super::*;
+    use frame_support::pallet_prelude::*;
+    use frame_system::pallet_prelude::*;
 
-    /// The Event type.
-    type RuntimeEvent: From<Event<Self>> + Into<<Self as frame_system::Config>::RuntimeEvent>;
+    #[pallet::pallet]
+    #[pallet::without_storage_info]
+    pub struct Pallet<T>(_);
 
-    /// The currency mechanism.
-    type Currency: Currency<Self::AccountId>;
+    #[pallet::config]
+    pub trait Config: frame_system::Config {
+        /// The Event type.
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-    /// Handler with which to retrieve total token custody
-    type CustodyHandler: pallet_staking::CustodyHandler<Self::AccountId, BalanceOf<Self>>;
+        /// The currency mechanism.
+        type Currency: Currency<Self::AccountId>;
 
-    /// Handler to retrieve public accounts
-    type PublicAccountsHandler: xx_public::PublicAccountsHandler<Self::AccountId>;
+        /// Handler to retrieve public accounts
+        type PublicAccountsHandler: xx_public::PublicAccountsHandler<Self::AccountId>;
 
-    //---------------- REWARDS POOL ----------------//
+        //---------------- REWARDS POOL ----------------//
 
-    /// The RewardsPool sub component id, used to derive its account ID.
-    type RewardsPoolId: Get<PalletId>;
+        /// The RewardsPool sub component id, used to derive its account ID.
+        type RewardsPoolId: Get<PalletId>;
 
-    /// The reward remainder handler (Treasury).
-    type RewardRemainder: OnUnbalanced<NegativeImbalanceOf<Self>>;
+        /// The reward remainder handler (Treasury).
+        type RewardRemainder: OnUnbalanced<NegativeImbalanceOf<Self>>;
 
-    //----------------   INFLATION  ----------------//
+        //----------------   INFLATION  ----------------//
 
-    /// Era duration needed for ideal inflation computation.
-    type EraDuration: Get<Self::BlockNumber>;
+        /// Era duration needed for ideal inflation computation.
+        type EraDuration: Get<BlockNumberFor<Self>>;
 
-    /// The admin origin for the pallet (Tech Committee unanimity).
-    type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+        /// The admin origin for the pallet (Tech Committee unanimity).
+        type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-    /// Weight information for extrinsics in this pallet.
-    type WeightInfo: WeightInfo;
-}
-
-decl_storage! {
-    trait Store for Module<T: Config> as XXEconomics {
-        //----------------  INFLATION   ----------------//
-
-        /// Inflation fixed parameters: minimum inflation, ideal stake and curve falloff
-        pub InflationParams get(fn inflation_params) config():
-            inflation::InflationFixedParams;
-
-        /// List of ideal interest points, defined as a tuple of block number and idea interest
-        pub InterestPoints get(fn interest_points) config() build(|config: &GenesisConfig<T>| {
-            // Sort points when building from genesis
-            let mut points = config.interest_points.clone();
-            points.sort_by(|a, b| a.block.cmp(&b.block));
-            points
-        }): Vec<inflation::IdealInterestPoint<T::BlockNumber>>;
-
-        /// Ideal liquidity rewards staked amount
-        pub IdealLiquidityStake get(fn ideal_stake_rewards) config(): BalanceOf<T>;
-
-        /// Liquidity rewards balance
-        pub LiquidityRewards get(fn liquidity_rewards) config(): BalanceOf<T>;
-
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
-	add_extra_genesis {
-	    config(balance): BalanceOf<T>;
-		build(|config| {
-		    //---------------- REWARDS POOL ----------------//
-			// Create Rewards pool account and set the balance from genesis
-			let account_id = <Module<T>>::rewards_account_id();
-            let _ = <T as Config>::Currency::make_free_balance_be(&account_id, config.balance);
-		});
-	}
-}
 
-decl_event! {
-    pub enum Event<T> where
-        Balance = BalanceOf<T>,
-    {
+    #[pallet::event]
+    #[pallet::generate_deposit(pub fn deposit_event)]
+    pub enum Event<T: Config> {
         //---------------- REWARDS POOL ----------------//
 
         /// Rewards were given from the pool
-        RewardFromPool(Balance),
+        RewardFromPool(BalanceOf<T>),
         /// Rewards were minted
-        RewardMinted(Balance),
+        RewardMinted(BalanceOf<T>),
 
         //----------------  INFLATION   ----------------//
 
@@ -123,28 +96,77 @@ decl_event! {
         /// Liquidity rewards balance was changed
         LiquidityRewardsBalanceChanged,
     }
-}
 
-decl_module! {
-	pub struct Module<T: Config> for enum Call where origin: T::RuntimeOrigin {
-	    //---------------- REWARDS POOL ----------------//
+    /// Inflation fixed parameters: minimum inflation, ideal stake and curve falloff
+    #[pallet::storage]
+    #[pallet::getter(fn inflation_params)]
+    pub type InflationParams<T> =
+        StorageValue<_, inflation::InflationFixedParams, ValueQuery>;
 
-	    const RewardsPoolId: PalletId = T::RewardsPoolId::get();
-	    const RewardsPoolAccount: T::AccountId = T::RewardsPoolId::get().into_account_truncating();
+    /// List of ideal interest points, defined as a tuple of block number and ideal interest
+    #[pallet::storage]
+    #[pallet::getter(fn interest_points)]
+    pub type InterestPoints<T: Config> =
+        StorageValue<_, Vec<inflation::IdealInterestPoint<BlockNumberFor<T>>>, ValueQuery>;
 
-	    fn deposit_event() = default;
+    /// Ideal liquidity rewards staked amount
+    #[pallet::storage]
+    #[pallet::getter(fn ideal_stake_rewards)]
+    pub type IdealLiquidityStake<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
-        //----------------    ADMIN     ----------------//
+    /// Liquidity rewards balance
+    #[pallet::storage]
+    #[pallet::getter(fn liquidity_rewards)]
+    pub type LiquidityRewards<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
+    #[pallet::genesis_config]
+    #[derive(frame_support::DefaultNoBound)]
+    pub struct GenesisConfig<T: Config> {
+        pub inflation_params: inflation::InflationFixedParams,
+        pub interest_points: Vec<inflation::IdealInterestPoint<BlockNumberFor<T>>>,
+        pub ideal_liquidity_stake: BalanceOf<T>,
+        pub liquidity_rewards: BalanceOf<T>,
+        pub balance: BalanceOf<T>,
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+        fn build(&self) {
+            // Set inflation params
+            InflationParams::<T>::put(&self.inflation_params);
+
+            // Sort points when building from genesis
+            let mut points = self.interest_points.clone();
+            points.sort_by(|a, b| a.block.cmp(&b.block));
+            InterestPoints::<T>::put(points);
+
+            // Set ideal liquidity stake
+            IdealLiquidityStake::<T>::put(&self.ideal_liquidity_stake);
+
+            // Set liquidity rewards
+            LiquidityRewards::<T>::put(&self.liquidity_rewards);
+
+            // Create Rewards pool account and set the balance from genesis
+            let account_id = Pallet::<T>::rewards_account_id();
+            let _ = <T as Config>::Currency::make_free_balance_be(&account_id, self.balance);
+        }
+    }
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
         /// Set inflation fixed parameters
         ///
         /// The dispatch origin must be AdminOrigin.
-        ///
-        #[weight = <T as Config>::WeightInfo::set_inflation_params()]
-        pub fn set_inflation_params(origin, params: inflation::InflationFixedParams) {
+        #[pallet::call_index(0)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_inflation_params())]
+        pub fn set_inflation_params(
+            origin: OriginFor<T>,
+            params: inflation::InflationFixedParams,
+        ) -> DispatchResult {
             Self::ensure_admin(origin)?;
-            <InflationParams>::put(params);
-            Self::deposit_event(RawEvent::InflationParamsChanged);
+            InflationParams::<T>::put(params);
+            Self::deposit_event(Event::InflationParamsChanged);
+            Ok(())
         }
 
         /// Set ideal interest points
@@ -153,27 +175,35 @@ decl_module! {
         /// It's up to the caller to ensure the ordering, otherwise leads to unexpected behavior.
         ///
         /// The dispatch origin must be AdminOrigin.
-        ///
-        #[weight = <T as Config>::WeightInfo::set_interest_points()]
-        pub fn set_interest_points(origin, points: Vec<inflation::IdealInterestPoint<T::BlockNumber>>) {
+        #[pallet::call_index(1)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_interest_points())]
+        pub fn set_interest_points(
+            origin: OriginFor<T>,
+            points: Vec<inflation::IdealInterestPoint<BlockNumberFor<T>>>,
+        ) -> DispatchResult {
             Self::ensure_admin(origin)?;
             // Insert sorted vector of points
             let mut sorted_points = points.clone();
             sorted_points.sort_by(|a, b| a.block.cmp(&b.block));
-            <InterestPoints<T>>::put(sorted_points);
-            Self::deposit_event(RawEvent::InterestPointsChanged);
+            InterestPoints::<T>::put(sorted_points);
+            Self::deposit_event(Event::InterestPointsChanged);
+            Ok(())
         }
 
         /// Set ideal liquidity rewards stake amount
         ///
         /// The dispatch origin must be AdminOrigin.
         /// This can be used to adjust the ideal liquidity reward stake
-        ///
-        #[weight = <T as Config>::WeightInfo::set_liquidity_rewards_stake()]
-        pub fn set_liquidity_rewards_stake(origin, #[compact] amount: BalanceOf<T>) {
+        #[pallet::call_index(2)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_liquidity_rewards_stake())]
+        pub fn set_liquidity_rewards_stake(
+            origin: OriginFor<T>,
+            #[pallet::compact] amount: BalanceOf<T>,
+        ) -> DispatchResult {
             Self::ensure_admin(origin)?;
-            <IdealLiquidityStake<T>>::put(amount);
-            Self::deposit_event(RawEvent::IdealLiquidityStakeChanged);
+            IdealLiquidityStake::<T>::put(amount);
+            Self::deposit_event(Event::IdealLiquidityStakeChanged);
+            Ok(())
         }
 
         /// Set balance of liquidity rewards
@@ -181,17 +211,21 @@ decl_module! {
         /// The dispatch origin must be AdminOrigin.
         /// This should only be used to make corrections to liquidity rewards balance
         /// according to data from ETH chain
-        ///
-        #[weight = <T as Config>::WeightInfo::set_liquidity_rewards_balance()]
-        pub fn set_liquidity_rewards_balance(origin, #[compact] amount: BalanceOf<T>) {
+        #[pallet::call_index(3)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_liquidity_rewards_balance())]
+        pub fn set_liquidity_rewards_balance(
+            origin: OriginFor<T>,
+            #[pallet::compact] amount: BalanceOf<T>,
+        ) -> DispatchResult {
             Self::ensure_admin(origin)?;
-            <LiquidityRewards<T>>::put(amount);
-            Self::deposit_event(RawEvent::LiquidityRewardsBalanceChanged);
+            LiquidityRewards::<T>::put(amount);
+            Self::deposit_event(Event::LiquidityRewardsBalanceChanged);
+            Ok(())
         }
-	}
+    }
 }
 
-impl<T: Config> Module<T> {
+impl<T: Config> Pallet<T> {
     /// Check if origin is admin
     fn ensure_admin(o: T::RuntimeOrigin) -> DispatchResult {
         <T as Config>::AdminOrigin::try_origin(o)
@@ -201,11 +235,5 @@ impl<T: Config> Module<T> {
     }
 }
 
-// Manual implementation of WhitelistedStorageKeys for runtime benchmarks
-#[cfg(feature = "runtime-benchmarks")]
-impl<T: Config> frame_support::traits::WhitelistedStorageKeys for Module<T> {
-    fn whitelisted_storage_keys() -> frame_support::sp_std::vec::Vec<frame_benchmarking::TrackedStorageKey> {
-        use frame_support::sp_std::vec;
-        vec![]
-    }
-}
+// Type alias for backwards compatibility
+pub type Module<T> = Pallet<T>;

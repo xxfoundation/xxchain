@@ -44,7 +44,7 @@ fn set_inflation_params_called_by_admin() {
 			);
 		    assert_eq!(
 		        xx_economics_events(),
-		        vec![RawEvent::InflationParamsChanged]
+		        vec![Event::InflationParamsChanged]
 		    );
 		});
 }
@@ -82,7 +82,7 @@ fn set_interest_points_called_by_admin() {
 			);
 		    assert_eq!(
 		        xx_economics_events(),
-		        vec![RawEvent::InterestPointsChanged]
+		        vec![Event::InterestPointsChanged]
 		    );
 		});
 }
@@ -115,7 +115,7 @@ fn set_liquidity_rewards_stake_called_by_admin() {
 			);
 		    assert_eq!(
 		        xx_economics_events(),
-		        vec![RawEvent::IdealLiquidityStakeChanged]
+		        vec![Event::IdealLiquidityStakeChanged]
 		    );
 		});
 }
@@ -148,7 +148,7 @@ fn set_liquidity_rewards_balance_called_by_admin() {
 			);
 		    assert_eq!(
 		        xx_economics_events(),
-		        vec![RawEvent::LiquidityRewardsBalanceChanged]
+		        vec![Event::LiquidityRewardsBalanceChanged]
 		    );
 		});
 }
@@ -176,7 +176,7 @@ fn takes_rewards_from_pool_when_possible() {
 			assert_eq!(
 				xx_economics_events(),
 				vec![
-					RawEvent::RewardFromPool(issuance)
+					Event::RewardFromPool(issuance)
 				]
 			)
 		});
@@ -203,7 +203,7 @@ fn will_issue_when_pool_depleted() {
 			assert_eq!(
 				xx_economics_events(),
 				vec![
-					RawEvent::RewardMinted(issuance)
+					Event::RewardMinted(issuance)
 				]
 			)
 		});
@@ -230,8 +230,8 @@ fn will_split_pool_and_issuance_when_required() {
 			assert_eq!(
 				xx_economics_events(),
 				vec![
-					RawEvent::RewardFromPool(initial_rewards_balance),
-					RawEvent::RewardMinted(issuance - initial_rewards_balance)
+					Event::RewardFromPool(initial_rewards_balance),
+					Event::RewardMinted(issuance - initial_rewards_balance)
 				]
 			)
 		});
@@ -288,8 +288,8 @@ fn reward_remainders_will_split_pool_and_issuance_when_required() {
 			assert_eq!(
 				xx_economics_events(),
 				vec![
-					RawEvent::RewardFromPool(initial_rewards_balance),
-					RawEvent::RewardMinted(reward_remainder - initial_rewards_balance)
+					Event::RewardFromPool(initial_rewards_balance),
+					Event::RewardMinted(reward_remainder - initial_rewards_balance)
 				]
 			);
 
@@ -360,7 +360,9 @@ fn get_era_payout_with_increasing_interest() {
 		)
 		.build_and_execute(|| {
 			run_to_block(5);
-			assert_eq!(XXEconomics::era_payout(5000, 11000, MILLISECONDS_PER_YEAR), (1875, 0));
+			// With stake_ratio = 5000/11000 ≈ 45.45% (below ideal_stake = 50%),
+			// inflation_ratio < 1, so validator_payout < max_payout
+			assert_eq!(XXEconomics::era_payout(5000, 11000, MILLISECONDS_PER_YEAR), (1900, 162));
 		});
 }
 
@@ -410,7 +412,7 @@ fn confirm_unordered_points_get_sorted_when_set_by_admin() {
 			assert_eq!(XXEconomics::interest_points(), test_interest_curve_two());
 			assert_eq!(
 				xx_economics_events(),
-				vec![RawEvent::InterestPointsChanged]
+				vec![Event::InterestPointsChanged]
 			);
 		});
 }
@@ -432,12 +434,11 @@ fn confirm_payout_stakeable_calculation() {
 		// Total unstakeable should be
 		// rewards -> 1000
 		// liquidity -> 1000
-		// custody -> 1000
 		// public -> 2000
-		// total = 5000
-		// So if issuance is 15000, total stakeable should be 10000, so staking ratio is 50%
+		// total = 4000
+		// So if issuance is 14000, total stakeable should be 10000, so staking ratio is 50%
 		.build_and_execute(|| {
 			run_to_block(5);
-			assert_eq!(XXEconomics::era_payout(5000, 15000, MILLISECONDS_PER_YEAR), (1875, 0));
+			assert_eq!(XXEconomics::era_payout(5000, 14000, MILLISECONDS_PER_YEAR), (1875, 0));
 		});
 }

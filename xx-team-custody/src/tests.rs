@@ -4,8 +4,9 @@
 use super::*;
 use mock::*;
 
-use frame_support::{assert_noop, assert_ok, traits::StorePreimage};
+use frame_support::{assert_noop, assert_ok, traits::{Currency, StorePreimage, tokens::{Preservation, fungible::Inspect}}};
 use sp_runtime::{DispatchError, ModuleError};
+use sp_staking::StakingAccount;
 use pallet_proxy::ProxyDefinition;
 use pallet_democracy::{Vote, Conviction, AccountVote, BoundedCallOf};
 use std::convert::TryInto;
@@ -68,7 +69,7 @@ fn payout_call_after_first_payout_frequency() {
 
             assert_eq!(
                 xx_team_custody_events(),
-                vec![RawEvent::PayoutFromCustody(payee, expected_payout)]
+                vec![Event::PayoutFromCustody { who: payee, amount: expected_payout }]
             );
         });
 }
@@ -108,7 +109,7 @@ fn payout_accumulates_with_multiple_frequencies() {
             assert_eq!(Balances::usable_balance(payee), expected_payout);
             assert_eq!(
                 xx_team_custody_events(),
-                vec![RawEvent::PayoutFromCustody(payee, expected_payout)]
+                vec![Event::PayoutFromCustody { who: payee, amount: expected_payout }]
             );
         });
 }
@@ -120,7 +121,9 @@ fn payout_call_after_staking_custody_coins() {
     let allocation = 1000;
     let reserve_allocation = reserve_ratio() * allocation;
     let custody_allocation = allocation - reserve_allocation;
-    let bond_amount = custody_allocation - 1;
+    // In SDK 2509, usable_balance excludes the existential deposit (1)
+    // So we need to leave at least 2 to have 1 usable after bonding
+    let bond_amount = custody_allocation - 2;
 
     ExtBuilder::default()
         .with_team_allocations(&[(payee, allocation)])
@@ -142,7 +145,16 @@ fn payout_call_after_staking_custody_coins() {
             let fraction = Perbill::from_rational(PayoutFrequency::get(), CustodyDuration::get());
             let expected_payout = fraction * allocation;
 
-            let payout_from_custody = Balances::usable_balance(info.custody).min(expected_payout);
+            // In SDK 2509, staking uses Holds which reduce free_balance
+            // Get custody free balance before payout (after bond, free = custody_allocation - bond_amount)
+            let custody_free_before = Balances::free_balance(info.custody);
+
+            // Use reducible_balance to match the payout logic (Preserve mode during custody)
+            use frame_support::traits::tokens::Fortitude;
+            let custody_reducible = <Balances as Inspect<_>>::reducible_balance(
+                &info.custody, Preservation::Preserve, Fortitude::Polite
+            );
+            let payout_from_custody = custody_reducible.min(expected_payout);
             let payout_from_reserve = expected_payout - payout_from_custody;
 
             // actually do the payout
@@ -150,15 +162,16 @@ fn payout_call_after_staking_custody_coins() {
             assert_ok!(XXCustody::payout(RuntimeOrigin::signed(custodian), payee));
 
             // balance is tranferred to account
-            assert_eq!(Balances::usable_balance(payee), expected_payout);
+            assert_eq!(Balances::free_balance(payee), expected_payout);
 
             // expected amounts are deducted from custody and reserve accounts
+            // In SDK 2509, free_balance is reduced by holds (staking), so use the before value
             assert_eq!(
-                Balances::usable_balance(info.custody),
-                custody_allocation - bond_amount - payout_from_custody
+                Balances::free_balance(info.custody),
+                custody_free_before - payout_from_custody
             );
             assert_eq!(
-                Balances::usable_balance(info.reserve),
+                Balances::free_balance(info.reserve),
                 reserve_allocation - payout_from_reserve
             );
             // total custody is decreased
@@ -170,8 +183,8 @@ fn payout_call_after_staking_custody_coins() {
             assert_eq!(
                 xx_team_custody_events(),
                 vec![
-                    RawEvent::PayoutFromCustody(payee, payout_from_custody),
-                    RawEvent::PayoutFromReserve(payee, payout_from_reserve)
+                    Event::PayoutFromCustody { who: payee, amount: payout_from_custody },
+                    Event::PayoutFromReserve { who: payee, amount: payout_from_reserve }
                 ]
             );
         });
@@ -221,7 +234,7 @@ fn payout_call_after_staking_all_custody_coins() {
 
             assert_eq!(
                 xx_team_custody_events(),
-                vec![RawEvent::PayoutFromReserve(payee, expected_payout)]
+                vec![Event::PayoutFromReserve { who: payee, amount: expected_payout }]
             );
         });
 }
@@ -271,7 +284,7 @@ fn payout_call_after_staking_all_custody_insufficient_reserve_funds_for_full_pay
 
             assert_eq!(
                 xx_team_custody_events(),
-                vec![RawEvent::PayoutFromReserve(payee, expected_payout)]
+                vec![Event::PayoutFromReserve { who: payee, amount: expected_payout }]
             );
         });
 }
@@ -334,9 +347,9 @@ fn payout_call_after_custody_period_ended() {
             assert_eq!(
                 xx_team_custody_events(),
                 vec![
-                    RawEvent::PayoutFromCustody(payee, custody_allocation),
-                    RawEvent::PayoutFromReserve(payee, reserve_allocation),
-                    RawEvent::CustodyDone(payee),
+                    Event::PayoutFromCustody { who: payee, amount: custody_allocation },
+                    Event::PayoutFromReserve { who: payee, amount: reserve_allocation },
+                    Event::CustodyDone { who: payee },
                 ]
             );
         });
@@ -363,7 +376,8 @@ fn payout_call_after_custody_period_ended_with_bonded() {
                 custodian,                 // controller of the bond
                 custody_allocation         // amount to bond
             ));
-            assert_eq!(Staking::bonded(info.custody), Some(custodian));
+            // In SDK 2509, stash is the controller, so bonded returns the stash itself
+            assert_eq!(Staking::bonded(&info.custody), Some(info.custody.clone()));
 
             run_to_block(CustodyDuration::get() + 1);
             assert_ok!(XXCustody::payout(RuntimeOrigin::signed(custodian), payee));
@@ -373,9 +387,9 @@ fn payout_call_after_custody_period_ended_with_bonded() {
             assert_eq!(
                 xx_team_custody_events(),
                 vec![
-                    RawEvent::PayoutFromCustody(payee, custody_allocation),
-                    RawEvent::PayoutFromReserve(payee, reserve_allocation),
-                    RawEvent::CustodyDone(payee),
+                    Event::PayoutFromCustody { who: payee, amount: custody_allocation },
+                    Event::PayoutFromReserve { who: payee, amount: reserve_allocation },
+                    Event::CustodyDone { who: payee },
                 ]
             );
         });
@@ -412,9 +426,9 @@ fn payout_call_after_custody_period_ended_with_custodian_set_proxy() {
             assert_eq!(
                 xx_team_custody_events(),
                 vec![
-                    RawEvent::PayoutFromCustody(payee, custody_allocation),
-                    RawEvent::PayoutFromReserve(payee, reserve_allocation),
-                    RawEvent::CustodyDone(payee),
+                    Event::PayoutFromCustody { who: payee, amount: custody_allocation },
+                    Event::PayoutFromReserve { who: payee, amount: reserve_allocation },
+                    Event::CustodyDone { who: payee },
                 ]
             );
         });
@@ -455,9 +469,9 @@ fn payout_call_after_custody_period_ended_with_team_set_proxy() {
             assert_eq!(
                 xx_team_custody_events(),
                 vec![
-                    RawEvent::PayoutFromCustody(payee, custody_allocation),
-                    RawEvent::PayoutFromReserve(payee, reserve_allocation),
-                    RawEvent::CustodyDone(payee),
+                    Event::PayoutFromCustody { who: payee, amount: custody_allocation },
+                    Event::PayoutFromReserve { who: payee, amount: reserve_allocation },
+                    Event::CustodyDone { who: payee },
                 ]
             );
         });
@@ -712,17 +726,17 @@ fn custody_bond_can_bond_during_custody_period() {
                 1                          // amount to bond
             ));
 
-            // custodian is the controller account
-            assert_eq!(Staking::bonded(info.custody), Some(custodian));
-            assert_eq!(Staking::ledger(custodian).unwrap().total, 1);
+            // In SDK 2509, stash is the controller, so bonded returns the stash itself
+            assert_eq!(Staking::bonded(&info.custody), Some(info.custody.clone()));
+            assert_eq!(Staking::ledger(StakingAccount::Stash(info.custody.clone())).unwrap().total, 1);
 
             // add 1 extra
             assert_ok!(XXCustody::custody_bond_extra(
                 RuntimeOrigin::signed(custodian), // called by custodian
-                info.custody,              // controller of the bond
+                info.custody.clone(),      // custody account
                 1                          // amount to bond
             ));
-            assert_eq!(Staking::ledger(custodian).unwrap().total, 2);
+            assert_eq!(Staking::ledger(StakingAccount::Stash(info.custody)).unwrap().total, 2);
         });
 }
 
@@ -801,7 +815,9 @@ fn custody_set_controller_call_for_non_custody_account_fails() {
 }
 
 #[test]
-fn custody_set_controller_fails_after_custody_period() {
+fn custody_set_controller_is_noop_in_sdk2509() {
+    // NOTE: In SDK 2509+, controller is deprecated (stash is the controller).
+    // This function is now a no-op for backwards compatibility.
     let custodian = 1;
     let payee = 2;
 
@@ -811,13 +827,13 @@ fn custody_set_controller_fails_after_custody_period() {
         .build_and_execute(|| {
             let info = XXCustody::team_accounts(payee).unwrap();
             run_to_block(CustodyDuration::get() + 1);
-            assert_noop!(
+            // Function is now a no-op, so it succeeds even after custody period
+            assert_ok!(
                 XXCustody::custody_set_controller(
                     RuntimeOrigin::signed(custodian), // called by custodian
                     info.custody,              // team member's custody account
                     custodian,                 // controller of the bond
-                ),
-                Error::<Test>::CustodyPeriodEnded
+                )
             );
         });
 }
@@ -908,12 +924,13 @@ fn custody_set_proxy_fails_if_custody_fully_staked() {
                 10                         // amount to bond
             ));
 
+            // In SDK 2509, this returns InsufficientBalance instead of LiquidityRestrictions
             assert_noop!(XXCustody::custody_set_proxy(
                     RuntimeOrigin::signed(custodian), // called by custodian
                     info.custody,              // team member's custody account
                     proxy,                     // proxy
                 ),
-                pallet_balances::Error::<Test>::LiquidityRestrictions
+                pallet_balances::Error::<Test>::InsufficientBalance
             );
         });
 }
@@ -1029,7 +1046,8 @@ fn aye(who: AccountId) -> AccountVote<Balance> {
 }
 
 fn set_balance_proposal(value: u128) -> BoundedCallOf<Test> {
-	let inner = pallet_balances::Call::set_balance { who: 42, new_free: value, new_reserved: 0 };
+	// In SDK 2509, set_balance was replaced with force_set_balance
+	let inner = pallet_balances::Call::force_set_balance { who: 42, new_free: value };
 	let outer = RuntimeCall::Balances(inner);
 	Preimage::bound(outer).unwrap()
 }
@@ -1222,12 +1240,13 @@ fn team_custody_set_proxy_call_after_governance_period_custody_fully_staked() {
 
             run_to_block(GovernanceCustodyDuration::get() + 1);
 
+            // In SDK 2509, this returns InsufficientBalance instead of LiquidityRestrictions
             assert_noop!(
                 XXCustody::team_custody_set_proxy(
                     RuntimeOrigin::signed(team_member),
                     proxy,
                 ),
-                pallet_balances::Error::<Test>::LiquidityRestrictions
+                pallet_balances::Error::<Test>::InsufficientBalance
             );
 
         });
@@ -1324,8 +1343,8 @@ fn admin_add_remove_custodian() {
         assert_eq!(
             xx_team_custody_events(),
             vec![
-                RawEvent::CustodianAdded(new_custodian),
-                RawEvent::CustodianRemoved(new_custodian),
+                Event::CustodianAdded { who: new_custodian },
+                Event::CustodianRemoved { who: new_custodian },
             ]
         );
     });
@@ -1383,7 +1402,7 @@ fn replace_team_member() {
         assert_eq!(
             xx_team_custody_events(),
             vec![
-                RawEvent::TeamMemberUpdated(team_member, replacement),
+                Event::TeamMemberUpdated { old: team_member, new: replacement },
             ]
         );
     });
@@ -1415,7 +1434,7 @@ fn assert_custody_ended(allocations: &[(AccountId, Balance, Balance, AccountId, 
 
         // governance proxy was removed
         assert_eq!(
-            Proxy::proxies(custody),
+            Proxy::proxies(*custody),
             (vec![].try_into().unwrap(), 0)
         );
 
@@ -1426,11 +1445,11 @@ fn assert_custody_ended(allocations: &[(AccountId, Balance, Balance, AccountId, 
         );
         // All custody and reserve accounts are killed
         // custody account depleted and reaped
-        assert_eq!(Balances::total_balance(&custody), 0);
-        assert!(is_reaped(&custody));
+        assert_eq!(<Balances as Currency<_>>::total_balance(custody), 0);
+        assert!(is_reaped(custody));
         // reserve account depleted and reaped
-        assert_eq!(Balances::total_balance(&reserve), 0);
-        assert!(is_reaped(&reserve));
+        assert_eq!(<Balances as Currency<_>>::total_balance(reserve), 0);
+        assert!(is_reaped(reserve));
     }
 
     // total custody amount is zero

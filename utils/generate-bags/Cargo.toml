@@ -7,6 +7,6 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.0.9", features = ["derive"] }
 
-generate-bags = { git = "https://github.com/xx-labs/substrate", branch = "xx-network-v0.2.6" }
+generate-bags = { workspace = true }
 
-xxnetwork-runtime = { version = "0.2.6", path = "../../runtime/xxnetwork" }
+xxnetwork-runtime = { path = "../../runtime/xxnetwork" }
