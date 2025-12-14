@@ -8,7 +8,7 @@ edition = "2021"
 workspace = true
 
 [dependencies]
-codec = { workspace = true, package = "parity-scale-codec" }
+codec = { workspace = true }
 scale-info = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }

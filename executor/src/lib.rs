@@ -15,17 +15,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A `CodeExecutor` specialization which uses natively compiled runtime when the wasm to be
-//! executed is equivalent to the natively compiled code.
+//! Executor configuration for the xxnetwork node.
+//!
+//! Note: Native execution has been deprecated in favor of pure WASM execution.
+//! The `XXNetworkExecutorDispatch` is kept only for backward compatibility with
+//! benchmark tests. New code should use `WasmExecutor` from `sc_executor` directly.
 
+// Keep NativeElseWasmExecutor for backward compatibility with benchmarks
+#[allow(deprecated)]
 pub use sc_executor::NativeElseWasmExecutor;
 
 // Declare an instance of the native executor named `XXNetworkExecutorDispatch`.
 // Include the wasm binary as the equivalent wasm code.
+// NOTE: This is deprecated and only kept for benchmark compatibility.
 #[cfg(feature = "xxnetwork")]
+#[allow(deprecated)]
 pub struct XXNetworkExecutorDispatch;
 
 #[cfg(feature = "xxnetwork")]
+#[allow(deprecated)]
 impl sc_executor::NativeExecutionDispatch for XXNetworkExecutorDispatch {
 	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
 

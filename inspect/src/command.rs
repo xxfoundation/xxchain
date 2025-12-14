@@ -23,26 +23,34 @@ use crate::{
 	Inspector,
 };
 use sc_cli::{CliConfiguration, ImportParams, Result, SharedParams};
-use sc_executor::NativeElseWasmExecutor;
-use sc_service::{new_full_client, Configuration, NativeExecutionDispatch};
+use sc_executor::{sp_wasm_interface::HostFunctions, HeapAllocStrategy, WasmExecutor};
+use sc_service::{new_full_client, Configuration};
 use sp_runtime::traits::Block;
 use std::str::FromStr;
 
 impl InspectCmd {
 	/// Run the inspect command, passing the inspector.
-	pub fn run<B, RA, EX>(&self, config: Configuration) -> Result<()>
+	pub fn run<B, RA, H>(&self, config: Configuration) -> Result<()>
 	where
 		B: Block,
 		B::Hash: FromStr,
 		RA: Send + Sync + 'static,
-		EX: NativeExecutionDispatch + 'static,
+		H: HostFunctions,
 	{
-		let executor = NativeElseWasmExecutor::<EX>::new(
-			config.executor.wasm_method,
-			config.executor.default_heap_pages,
-			config.executor.max_runtime_instances,
-			config.executor.runtime_cache_size,
-		);
+		let heap_pages = config
+			.executor
+			.default_heap_pages
+			.map_or(HeapAllocStrategy::Static { extra_pages: 0 }, |pages| {
+				HeapAllocStrategy::Static { extra_pages: pages as u32 }
+			});
+
+		let executor: WasmExecutor<H> = WasmExecutor::builder()
+			.with_execution_method(config.executor.wasm_method)
+			.with_onchain_heap_alloc_strategy(heap_pages)
+			.with_offchain_heap_alloc_strategy(heap_pages)
+			.with_max_runtime_instances(config.executor.max_runtime_instances)
+			.with_runtime_cache_size(config.executor.runtime_cache_size)
+			.build();
 
 		let client = new_full_client::<B, RA, _>(&config, None, executor)?;
 		let inspect = Inspector::<B>::new(client);

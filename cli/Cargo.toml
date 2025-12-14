@@ -73,7 +73,7 @@ sc-consensus-grandpa = { workspace = true }
 sc-rpc = { workspace = true }
 sc-sync-state-rpc = { workspace = true }
 sc-basic-authorship = { workspace = true }
-sc-service = { workspace = true, default-features = false }
+sc-service = { workspace = true }
 sc-telemetry = { workspace = true }
 sc-executor = { workspace = true }
 sc-authority-discovery = { workspace = true }

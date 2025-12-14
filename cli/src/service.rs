@@ -32,7 +32,6 @@ use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_consensus_babe::inherents::BabeCreateInherentDataProviders;
 use std::sync::Arc;
 
-pub use node_executor::XXNetworkExecutorDispatch;
 pub use xxnetwork_runtime::RuntimeApi as XXNetworkRuntimeApi;
 
 /// Host functions for runtime

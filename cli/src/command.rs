@@ -83,7 +83,8 @@ pub fn run() -> Result<()> {
 				cmd.run::<
 					chain_spec::xxnetwork::Block,
 					chain_spec::xxnetwork::RuntimeApi,
-					service::XXNetworkExecutorDispatch>(config)
+					service::HostFunctions,
+				>(config)
 			})
 		}
 		Some(Subcommand::Benchmark(cmd)) => {

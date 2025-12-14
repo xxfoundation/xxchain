@@ -57,11 +57,10 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_staking::Config + xx_staking_extension::Config
+		frame_system::Config<RuntimeEvent: From<Event<Self>>>
+		+ pallet_staking::Config
+		+ xx_staking_extension::Config
 	{
-		/// The Event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// The origin that is allowed to modify cmix variables.
 		type CmixVariablesOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 

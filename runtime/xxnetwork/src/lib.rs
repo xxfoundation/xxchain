@@ -465,8 +465,6 @@ type EnsureTwoThirdsCouncil = EitherOfDiverse<
 >;
 
 impl xx_economics::Config for Runtime {
-	// General config
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 
 	type PublicAccountsHandler = XXPublic;
@@ -485,13 +483,9 @@ impl xx_economics::Config for Runtime {
 	type WeightInfo = weights::xx_economics::WeightInfo<Runtime>;
 }
 
-impl xx_staking_extension::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl xx_staking_extension::Config for Runtime {}
 
 impl xx_cmix::Config for Runtime {
-	// General config
-	type RuntimeEvent = RuntimeEvent;
 	// CMIX Variables can be changed by 2/3 Council
 	type CmixVariablesOrigin = EnsureTwoThirdsCouncil;
 	// Admin is 2/3 technical committee
@@ -501,7 +495,6 @@ impl xx_cmix::Config for Runtime {
 }
 
 impl xx_public::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type VestingSchedule = Vesting;
 	type TestnetId = TestnetId;
 	type SaleId = SaleId;
@@ -1256,7 +1249,6 @@ parameter_types! {
 }
 
 impl claims::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type VestingSchedule = Vesting;
 	type Prefix = Prefix;
 	/// Tech committee unanimity can move a claim
@@ -1275,7 +1267,6 @@ parameter_types! {
 // Chain Bridge Pallet
 impl chainbridge::Config for Runtime {
 	type PalletId = BridgePalletId;
-	type RuntimeEvent = RuntimeEvent;
 	type AdminOrigin = EnsureTwoThirdsTechnical;
 	type Proposal = RuntimeCall;
 	type ChainId = ChainId;
@@ -1284,7 +1275,6 @@ impl chainbridge::Config for Runtime {
 
 // Swap pallet
 impl swap::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
 	type Currency = Balances;
 	type NativeTokenId = TokenID;
