@@ -93,6 +93,23 @@ pallet-nfts-runtime-api = { workspace = true }
 # smart contracts
 pallet-revive = { workspace = true }
 
+# bridge hub integration
+pallet-bridge-grandpa = { workspace = true }
+pallet-bridge-messages = { workspace = true }
+bp-runtime = { workspace = true }
+bp-header-chain = { workspace = true }
+bp-messages = { workspace = true }
+
+# XCM stack (for Bridge Hub integration)
+pallet-xcm = { workspace = true }
+pallet-message-queue = { workspace = true }
+staging-xcm = { workspace = true }
+staging-xcm-builder = { workspace = true }
+staging-xcm-executor = { workspace = true }
+bp-polkadot-core = { workspace = true }
+pallet-xcm-bridge-hub = { workspace = true }
+bp-xcm-bridge-hub = { workspace = true }
+
 # chainbridge
 chainbridge = { workspace = true }
 # swap
@@ -193,6 +210,19 @@ std = [
 	"pallet-nfts/std",
 	"pallet-nfts-runtime-api/std",
 	"pallet-revive/std",
+	"pallet-bridge-grandpa/std",
+	"pallet-bridge-messages/std",
+	"bp-runtime/std",
+	"bp-header-chain/std",
+	"bp-messages/std",
+	"pallet-xcm/std",
+	"pallet-message-queue/std",
+	"staging-xcm/std",
+	"staging-xcm-builder/std",
+	"staging-xcm-executor/std",
+	"bp-polkadot-core/std",
+	"pallet-xcm-bridge-hub/std",
+	"bp-xcm-bridge-hub/std",
 	"migrations/std",
 ]
 runtime-benchmarks = [
@@ -231,6 +261,11 @@ runtime-benchmarks = [
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-nfts/runtime-benchmarks",
 	"pallet-revive/runtime-benchmarks",
+	"pallet-xcm/runtime-benchmarks",
+	"pallet-message-queue/runtime-benchmarks",
+	"pallet-bridge-grandpa/runtime-benchmarks",
+	"pallet-bridge-messages/runtime-benchmarks",
+	"pallet-xcm-bridge-hub/runtime-benchmarks",
 	"claims/runtime-benchmarks",
 	"swap/runtime-benchmarks",
 	"xx-cmix/runtime-benchmarks",
@@ -277,6 +312,11 @@ try-runtime = [
 	"pallet-vesting/try-runtime",
 	"pallet-nfts/try-runtime",
 	"pallet-revive/try-runtime",
+	"pallet-bridge-grandpa/try-runtime",
+	"pallet-bridge-messages/try-runtime",
+	"pallet-xcm/try-runtime",
+	"pallet-message-queue/try-runtime",
+	"pallet-xcm-bridge-hub/try-runtime",
 	"chainbridge/try-runtime",
 	"claims/try-runtime",
 	"swap/try-runtime",

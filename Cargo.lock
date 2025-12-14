@@ -815,9 +815,9 @@ dependencies = [
 
 [[package]]
 name = "ark-vrf"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9501da18569b2afe0eb934fb7afd5a247d238b94116155af4dd068f319adfe6d"
+checksum = "0d63e9780640021b74d02b32895d8cec1b4abe8e5547b560a6bda6b14b78c6da"
 dependencies = [
  "ark-bls12-381 0.5.0",
  "ark-ec 0.5.0",
@@ -1502,6 +1502,133 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68534a48cbf63a4b1323c433cf21238c9ec23711e0df13b08c33e5c2082663ce"
 dependencies = [
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "bp-header-chain"
+version = "0.23.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "bp-runtime",
+ "finality-grandpa",
+ "frame-support",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-consensus-grandpa",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "bp-messages"
+version = "0.23.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "bp-header-chain",
+ "bp-runtime",
+ "frame-support",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-std",
+]
+
+[[package]]
+name = "bp-parachains"
+version = "0.23.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "bp-header-chain",
+ "bp-polkadot-core",
+ "bp-runtime",
+ "frame-support",
+ "impl-trait-for-tuples",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "bp-polkadot-core"
+version = "0.23.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "bp-messages",
+ "bp-runtime",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "bp-runtime"
+version = "0.23.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "hash-db",
+ "impl-trait-for-tuples",
+ "num-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-std",
+ "sp-trie",
+ "tracing",
+ "trie-db",
+]
+
+[[package]]
+name = "bp-test-utils"
+version = "0.23.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "bp-header-chain",
+ "bp-parachains",
+ "bp-polkadot-core",
+ "bp-runtime",
+ "ed25519-dalek",
+ "finality-grandpa",
+ "parity-scale-codec",
+ "sp-application-crypto",
+ "sp-consensus-grandpa",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+ "sp-trie",
+]
+
+[[package]]
+name = "bp-xcm-bridge-hub"
+version = "0.9.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "bp-messages",
+ "bp-runtime",
+ "frame-support",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-std",
+ "staging-xcm",
 ]
 
 [[package]]
@@ -7250,6 +7377,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-bridge-grandpa"
+version = "0.23.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "bp-header-chain",
+ "bp-runtime",
+ "bp-test-utils",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-consensus-grandpa",
+ "sp-runtime",
+ "sp-std",
+ "tracing",
+]
+
+[[package]]
+name = "pallet-bridge-messages"
+version = "0.23.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "bp-header-chain",
+ "bp-messages",
+ "bp-runtime",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-std",
+ "sp-trie",
+ "tracing",
+]
+
+[[package]]
 name = "pallet-broker"
 version = "0.22.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
@@ -7908,6 +8073,53 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-xcm"
+version = "23.0.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "bounded-collections",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex-literal",
+ "pallet-balances",
+ "pallet-revive",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
+ "tracing",
+ "xcm-runtime-apis",
+]
+
+[[package]]
+name = "pallet-xcm-bridge-hub"
+version = "0.19.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "bp-messages",
+ "bp-runtime",
+ "bp-xcm-bridge-hub",
+ "frame-support",
+ "frame-system",
+ "pallet-bridge-messages",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
+ "tracing",
 ]
 
 [[package]]
@@ -15371,6 +15583,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "xcm-runtime-apis"
+version = "0.10.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-weights",
+ "staging-xcm",
+ "staging-xcm-executor",
+]
+
+[[package]]
 name = "xml-rs"
 version = "0.8.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15600,6 +15826,11 @@ dependencies = [
 name = "xxnetwork-runtime"
 version = "0.2.6"
 dependencies = [
+ "bp-header-chain",
+ "bp-messages",
+ "bp-polkadot-core",
+ "bp-runtime",
+ "bp-xcm-bridge-hub",
  "chainbridge",
  "claims",
  "frame-benchmarking",
@@ -15620,6 +15851,8 @@ dependencies = [
  "pallet-bags-list",
  "pallet-balances",
  "pallet-bounties",
+ "pallet-bridge-grandpa",
+ "pallet-bridge-messages",
  "pallet-child-bounties",
  "pallet-collective",
  "pallet-democracy",
@@ -15630,6 +15863,7 @@ dependencies = [
  "pallet-identity",
  "pallet-im-online",
  "pallet-membership",
+ "pallet-message-queue",
  "pallet-multisig",
  "pallet-nfts",
  "pallet-nfts-runtime-api",
@@ -15652,6 +15886,8 @@ dependencies = [
  "pallet-uniques",
  "pallet-utility",
  "pallet-vesting",
+ "pallet-xcm",
+ "pallet-xcm-bridge-hub",
  "parity-scale-codec",
  "runtime-common",
  "scale-info",
@@ -15672,6 +15908,9 @@ dependencies = [
  "sp-storage",
  "sp-transaction-pool",
  "sp-version",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
  "static_assertions",
  "substrate-wasm-builder",
  "swap",
