@@ -2,3 +2,4 @@
 
 pub mod bridge_adjust;
 pub mod cmix_id_migration;
+pub mod pallet_versions;

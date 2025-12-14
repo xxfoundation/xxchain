@@ -93,7 +93,15 @@ use sp_runtime::generic::Era;
 use sp_io::hashing::sha2_256;
 
 // Migrations
-use migrations::{bridge_adjust::BridgeAdjust, cmix_id_migration::CmixIdMigration};
+use migrations::{
+	bridge_adjust::BridgeAdjust,
+	cmix_id_migration::CmixIdMigration,
+	pallet_versions::{
+		BountiesV0ToV4, GrandpaV4ToV5, HistoricalV0ToV1, IdentityV0ToV2, ImOnlineV0ToV1,
+		NftsV0ToV1, OffencesV0ToV1, SessionV0ToV1, StakingV12ToV13, StakingV13ToV14,
+		XXPublicV0ToV1,
+	},
+};
 
 mod weights;
 
@@ -1575,23 +1583,37 @@ pub type Executive = frame_executive::Executive<
 // The SDK pallet-staking is at storage version 16.
 //
 // Migration order:
-// 1. CmixIdMigration: v12xx → v12 (extract cmix_id to xx-staking-extension, rewrite ledgers)
-// 2. SDK migrations: v12 → v13 → v14 → v15 → v16
-// 3. BridgeAdjust: custom balance adjustment (independent of staking)
+// 1. CmixIdMigration: v12xx → v12 (extract cmix_id, rewrite ledgers, set version to 12)
+// 2. Staking v12→v13→v14: Custom migrations (SDK has broken in_code checks)
+// 3. Staking v14→v15→v16: SDK VersionedMigration (these work correctly)
+// 4. Other pallet version migrations
+// 5. BridgeAdjust: custom balance adjustment
 pub type Migrations = (
 	// Step 1: Custom migration from xx-labs fork format to SDK v12 format
-	// MUST run FIRST before any SDK staking migrations
 	// - Extracts cmix_id from old StakingLedger format
 	// - Stores cmix_id in xx-staking-extension::CmixIds
 	// - Rewrites ledgers in standard SDK v12 format (without cmix_id)
+	// - Sets staking version to 12
 	CmixIdMigration<Runtime>,
-	// Step 2: SDK staking migrations v12 → v16
-	// These use VersionedMigration wrappers that check storage versions
-	pallet_staking::migrations::v13::MigrateToV13<Runtime>,
-	pallet_staking::migrations::v14::MigrateToV14<Runtime>,
+	// Step 2: Staking v12 → v13 (custom, SDK checks in_code==13 which fails)
+	StakingV12ToV13<Runtime>,
+	// Step 3: Staking v13 → v14 (custom, SDK checks in_code==14 which fails)
+	StakingV13ToV14<Runtime>,
+	// Step 4: Staking v14 → v15 (SDK VersionedMigration, works correctly)
 	pallet_staking::migrations::v15::MigrateV14ToV15<Runtime>,
+	// Step 5: Staking v15 → v16 (SDK VersionedMigration, works correctly)
 	pallet_staking::migrations::v16::MigrateV15ToV16<Runtime>,
-	// Step 3: Custom bridge balance adjustment
+	// Step 6: Other pallet version migrations
+	OffencesV0ToV1<Runtime>,
+	SessionV0ToV1<Runtime>,
+	HistoricalV0ToV1<Runtime>,
+	GrandpaV4ToV5<Runtime>,
+	ImOnlineV0ToV1<Runtime>,
+	IdentityV0ToV2<Runtime>,
+	BountiesV0ToV4<Runtime>,
+	NftsV0ToV1<Runtime>,
+	XXPublicV0ToV1<Runtime>,
+	// Step 7: Custom bridge balance adjustment
 	BridgeAdjust<Runtime>,
 );
 

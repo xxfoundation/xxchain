@@ -310,6 +310,16 @@ where
 			reads, writes
 		);
 
+		// Set staking pallet version to 12 so SDK migrations v12→v13→... can run
+		use frame_support::traits::StorageVersion;
+		StorageVersion::new(12).put::<pallet_staking::Pallet<T>>();
+		writes += 1;
+
+		log::info!(
+			target: "runtime::migrations::cmix_id",
+			"Set staking storage version to 12"
+		);
+
 		T::DbWeight::get().reads_writes(reads, writes)
 	}
 
