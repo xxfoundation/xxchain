@@ -45,21 +45,19 @@ use xxnetwork_runtime::{
 	BalancesCall,
 	AccountId,
 	Signature,
+	RuntimeGenesisConfig,
 };
-use sc_block_builder::BlockBuilderProvider;
-use sc_client_api::{
-	execution_extensions::{ExecutionExtensions, ExecutionStrategies},
-	ExecutionStrategy,
-};
+use sc_block_builder::BlockBuilderApi;
+use sc_client_api::execution_extensions::ExecutionExtensions;
 use sc_client_db::PruningMode;
 use sc_consensus::{BlockImport, BlockImportParams, ForkChoiceStrategy, ImportResult, ImportedAux};
-use sc_executor::{NativeElseWasmExecutor, WasmExecutionMethod, WasmtimeInstantiationStrategy};
+use sc_executor::{WasmExecutor, WasmExecutionMethod, WasmtimeInstantiationStrategy};
 use sp_api::ProvideRuntimeApi;
-use sp_block_builder::BlockBuilder;
 use sp_consensus::BlockOrigin;
-use sp_core::{blake2_256, ed25519, sr25519, traits::SpawnNamed, ExecutionContext, Pair, Public};
+use sp_core::{blake2_256, ed25519, sr25519, traits::SpawnNamed, Pair, Public};
 use sp_inherents::InherentData;
 use sp_runtime::{
+	generic::{self, ExtrinsicFormat},
 	traits::{Block as BlockT, IdentifyAccount, Verify},
 	OpaqueExtrinsic,
 };
@@ -304,10 +302,10 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 
 		let signed = self.keyring.sign(
 			CheckedExtrinsic {
-				signed: Some((
+				format: ExtrinsicFormat::Signed(
 					sender,
 					signed_extra(0, ExistentialDeposit::get() + 1),
-				)),
+				),
 				function: match self.content.block_type {
 					BlockType::RandomTransfersKeepAlive =>
 						RuntimeCall::Balances(BalancesCall::transfer_keep_alive {
@@ -315,7 +313,7 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 							value: ExistentialDeposit::get() + 1,
 						}),
 					BlockType::RandomTransfersReaping => {
-						RuntimeCall::Balances(BalancesCall::transfer {
+						RuntimeCall::Balances(BalancesCall::transfer_allow_death {
 							dest: sp_runtime::MultiAddress::Id(receiver),
 							// Transfer so that ending balance would be 1 less than existential
 							// deposit so that we kill the sender account.
@@ -359,7 +357,7 @@ impl BenchDb {
 			dir.path().to_string_lossy(),
 		);
 		let (_client, _backend, _task_executor) =
-			Self::bench_client(database_type, dir.path(), Profile::Native, &keyring);
+			Self::bench_client(database_type, dir.path(), &keyring);
 		let directory_guard = Guard(dir);
 
 		BenchDb { keyring, directory_guard, database_type }
@@ -385,7 +383,6 @@ impl BenchDb {
 	fn bench_client(
 		database_type: DatabaseType,
 		dir: &std::path::Path,
-		profile: Profile,
 		keyring: &BenchKeyring,
 	) -> (Client, std::sync::Arc<Backend>, TaskExecutor) {
 		let db_config = sc_client_db::DatabaseSettings {
@@ -393,18 +390,21 @@ impl BenchDb {
 			state_pruning: Some(PruningMode::ArchiveAll),
 			source: database_type.into_settings(dir.into()),
 			blocks_pruning: sc_client_db::BlocksPruning::KeepAll,
+			metrics_registry: None,
 		};
 		let task_executor = TaskExecutor::new();
 
 		let backend = sc_service::new_db_backend(db_config).expect("Should not fail");
-		let executor = NativeElseWasmExecutor::new(
-			WasmExecutionMethod::Compiled {
+
+		// Use WasmExecutor instead of deprecated NativeElseWasmExecutor
+		let executor: WasmExecutor<sp_io::SubstrateHostFunctions> = WasmExecutor::builder()
+			.with_execution_method(WasmExecutionMethod::Compiled {
 				instantiation_strategy: WasmtimeInstantiationStrategy::PoolingCopyOnWrite,
-			},
-			None,
-			8,
-			2,
-		);
+			})
+			.with_max_runtime_instances(8)
+			.with_runtime_cache_size(2)
+			.build();
+
 		let client_config = sc_service::ClientConfig::default();
 		let genesis_block_builder = sc_service::GenesisBlockBuilder::new(
 			&keyring.generate_genesis(),
@@ -416,11 +416,11 @@ impl BenchDb {
 
 		let client = sc_service::new_client(
 			backend.clone(),
-			executor,
+			executor.clone(),
 			genesis_block_builder,
 			None,
 			None,
-			ExecutionExtensions::new(profile.into_execution_strategies(), None, None),
+			ExecutionExtensions::new(None, Arc::new(executor)),
 			Box::new(task_executor.clone()),
 			None,
 			None,
@@ -444,11 +444,7 @@ impl BenchDb {
 
 		client
 			.runtime_api()
-			.inherent_extrinsics_with_context(
-				client.chain_info().genesis_hash,
-				ExecutionContext::BlockConstruction,
-				inherent_data,
-			)
+			.inherent_extrinsics(client.chain_info().genesis_hash, inherent_data)
 			.expect("Get inherents failed")
 	}
 
@@ -462,7 +458,6 @@ impl BenchDb {
 		let (client, _backend, _task_executor) = Self::bench_client(
 			self.database_type,
 			self.directory_guard.path(),
-			Profile::Wasm,
 			&self.keyring,
 		);
 
@@ -473,7 +468,9 @@ impl BenchDb {
 	pub fn generate_block(&mut self, content: BlockContent) -> Block {
 		let client = self.client();
 
-		let mut block = client.new_block(Default::default()).expect("Block creation failed");
+		let mut block = client
+			.new_block(Default::default())
+			.expect("Block creation failed");
 
 		for extrinsic in self.generate_inherents(&client) {
 			block.push(extrinsic).expect("Push inherent failed");
@@ -507,10 +504,10 @@ impl BenchDb {
 	}
 
 	/// Clone this database and create context for testing/benchmarking.
-	pub fn create_context(&self, profile: Profile) -> BenchContext {
+	pub fn create_context(&self) -> BenchContext {
 		let BenchDb { directory_guard, keyring, database_type } = self.clone();
 		let (client, backend, task_executor) =
-			Self::bench_client(database_type, directory_guard.path(), profile, &keyring);
+			Self::bench_client(database_type, directory_guard.path(), &keyring);
 
 		BenchContext {
 			client: Arc::new(client),
@@ -575,10 +572,10 @@ impl BenchKeyring {
 		tx_version: u32,
 		genesis_hash: [u8; 32],
 	) -> UncheckedExtrinsic {
-		match xt.signed {
-			Some((signed, extra)) => {
+		match xt.format {
+			ExtrinsicFormat::Signed(signed, extra) => {
 				let payload = (
-					xt.function,
+					xt.function.clone(),
 					extra.clone(),
 					spec_version,
 					tx_version,
@@ -595,51 +592,25 @@ impl BenchKeyring {
 					}
 					})
 					.into();
-				UncheckedExtrinsic {
-					signature: Some((sp_runtime::MultiAddress::Id(signed), signature, extra)),
-					function: payload.0,
-				}
+				generic::UncheckedExtrinsic::new_signed(
+					xt.function,
+					sp_runtime::MultiAddress::Id(signed),
+					signature,
+					extra,
+				).into()
 			},
-			None => UncheckedExtrinsic { signature: None, function: xt.function },
+			ExtrinsicFormat::Bare => {
+				generic::UncheckedExtrinsic::new_bare(xt.function).into()
+			},
+			ExtrinsicFormat::General(_extension_version, extra) => {
+				generic::UncheckedExtrinsic::new_transaction(xt.function, extra).into()
+			}
 		}
 	}
 
 	/// Generate genesis with accounts from this keyring endowed with some balance.
-	pub fn generate_genesis(&self) -> xxnetwork_runtime::GenesisConfig {
-		crate::genesis::config_endowed(
-			Some(xxnetwork_runtime::wasm_binary_unwrap()),
-			self.collect_account_ids(),
-		)
-	}
-}
-
-/// Profile for exetion strategies.
-#[derive(Clone, Copy, Debug)]
-pub enum Profile {
-	/// As native as possible.
-	Native,
-	/// As wasm as possible.
-	Wasm,
-}
-
-impl Profile {
-	fn into_execution_strategies(self) -> ExecutionStrategies {
-		match self {
-			Profile::Wasm => ExecutionStrategies {
-				syncing: ExecutionStrategy::AlwaysWasm,
-				importing: ExecutionStrategy::AlwaysWasm,
-				block_construction: ExecutionStrategy::AlwaysWasm,
-				offchain_worker: ExecutionStrategy::AlwaysWasm,
-				other: ExecutionStrategy::AlwaysWasm,
-			},
-			Profile::Native => ExecutionStrategies {
-				syncing: ExecutionStrategy::NativeElseWasm,
-				importing: ExecutionStrategy::NativeElseWasm,
-				block_construction: ExecutionStrategy::NativeElseWasm,
-				offchain_worker: ExecutionStrategy::NativeElseWasm,
-				other: ExecutionStrategy::NativeElseWasm,
-			},
-		}
+	pub fn generate_genesis(&self) -> RuntimeGenesisConfig {
+		crate::genesis::config_endowed(self.collect_account_ids())
 	}
 }
 

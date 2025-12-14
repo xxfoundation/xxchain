@@ -16,6 +16,7 @@ scale-info = { workspace = true, features = ["std", "derive"] }
 node-primitives = { workspace = true, features = ["std"] }
 runtime-common = { workspace = true, features = ["std"] }
 xxnetwork-runtime = { path = "../runtime/xxnetwork", optional = true }
+node-testing = { path = "../testing", optional = true }
 sc-executor = { workspace = true }
 sp-core = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true }
@@ -28,7 +29,6 @@ sp-tracing = { workspace = true, features = ["std"] }
 criterion = "0.5"
 frame-support = { workspace = true, features = ["std"] }
 frame-system = { workspace = true, features = ["std"] }
-# node-testing = { path = "../testing" }  # Temporarily disabled during SDK upgrade
 pallet-balances = { workspace = true, features = ["std"] }
 pallet-im-online = { workspace = true, features = ["std"] }
 pallet-timestamp = { workspace = true, features = ["std"] }
@@ -48,6 +48,7 @@ futures = "0.3.21"
 default = ["xxnetwork"]
 stress-test = []
 xxnetwork = ["xxnetwork-runtime"]
+executor-tests = ["node-testing", "xxnetwork-runtime"]
 
 [[bench]]
 name = "bench"

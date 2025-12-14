@@ -21,25 +21,26 @@
 use crate::keyring::*;
 use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
 use xxnetwork_runtime::{
-	GenesisConfig, BalancesConfig, SessionConfig, StakingConfig, SystemConfig,
-	GrandpaConfig, SwapConfig, wasm_binary_unwrap,
+	RuntimeGenesisConfig, BalancesConfig, SessionConfig, StakingConfig,
+	GrandpaConfig, SwapConfig,
 	AccountId, StakerStatus, BabeConfig, BABE_GENESIS_EPOCH_CONFIG,
 };
 use runtime_common::constants::currency::UNITS;
-use node_primitives::Hash;
 use sp_runtime::Perbill;
 
 /// Create genesis runtime configuration for tests.
-pub fn config(code: Option<&[u8]>) -> GenesisConfig {
-	config_endowed(code, Default::default())
+///
+/// Note: The `code` parameter is deprecated and ignored. WASM code is now
+/// set separately via `TestExternalities::new_with_code`.
+pub fn config(_code: Option<&[u8]>) -> RuntimeGenesisConfig {
+	config_endowed(Default::default())
 }
 
 /// Create genesis runtime configuration for tests with some extra
 /// endowed accounts.
 pub fn config_endowed(
-	code: Option<&[u8]>,
 	extra_endowed: Vec<AccountId>,
-) -> GenesisConfig {
+) -> RuntimeGenesisConfig {
 	let mut endowed = vec![
 		(alice(), 111 * UNITS),
 		(bob(), 100 * UNITS),
@@ -53,22 +54,25 @@ pub fn config_endowed(
 		extra_endowed.into_iter().map(|endowed| (endowed, 100*UNITS))
 	);
 
-	GenesisConfig {
-		system: SystemConfig {
-			code: code.map(|x| x.to_vec()).unwrap_or_else(|| wasm_binary_unwrap().to_vec()),
-		},
+	RuntimeGenesisConfig {
+		// SystemConfig no longer has a code field - code is set via TestExternalities::new_with_code
+		system: Default::default(),
 		babe: BabeConfig {
 			authorities: vec![],
-			epoch_config: Some(BABE_GENESIS_EPOCH_CONFIG),
+			epoch_config: BABE_GENESIS_EPOCH_CONFIG,
+			..Default::default()
 		},
 		balances: BalancesConfig {
 			balances: endowed,
+			..Default::default()
 		},
 		staking: StakingConfig {
 			stakers: vec![
-				(dave(), alice(), 111 * UNITS, StakerStatus::Validator(Some(Hash::repeat_byte(1u8)))),
-				(eve(), bob(), 100 * UNITS, StakerStatus::Validator(Some(Hash::repeat_byte(2u8)))),
-				(ferdie(), charlie(), 100 * UNITS, StakerStatus::Validator(Some(Hash::repeat_byte(3u8))))
+				// Note: StakerStatus::Validator no longer takes cMix ID argument in standard SDK
+				// cMix IDs would need to be set via xx_staking_extension if needed
+				(dave(), alice(), 111 * UNITS, StakerStatus::Validator),
+				(eve(), bob(), 100 * UNITS, StakerStatus::Validator),
+				(ferdie(), charlie(), 100 * UNITS, StakerStatus::Validator)
 			],
 			validator_count: 3,
 			minimum_validator_count: 0,
@@ -90,10 +94,12 @@ pub fn config_endowed(
 					&Ed25519Keyring::Charlie,
 					&Sr25519Keyring::Charlie,
 				)),
-			]
+			],
+			..Default::default()
 		},
 		grandpa: GrandpaConfig {
 			authorities: vec![],
+			..Default::default()
 		},
 		im_online: Default::default(),
 		authority_discovery: Default::default(),
@@ -112,8 +118,9 @@ pub fn config_endowed(
 		xx_cmix: Default::default(),
 		xx_economics: Default::default(),
 		xx_custody: Default::default(),
-		xx_betanet_rewards: Default::default(),
+		// xx_betanet_rewards pallet was retired (index 33)
 		xx_public: Default::default(),
 		assets: Default::default(),
+		revive: Default::default(),
 	}
 }

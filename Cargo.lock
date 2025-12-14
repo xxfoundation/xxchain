@@ -3972,6 +3972,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs_extra"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
+
+[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6675,6 +6681,7 @@ dependencies = [
  "frame-system",
  "futures",
  "node-primitives",
+ "node-testing",
  "pallet-balances",
  "pallet-im-online",
  "pallet-timestamp",
@@ -6752,6 +6759,40 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "substrate-frame-rpc-system",
+]
+
+[[package]]
+name = "node-testing"
+version = "0.2.0"
+dependencies = [
+ "claims",
+ "frame-system",
+ "fs_extra",
+ "futures",
+ "log",
+ "node-primitives",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "runtime-common",
+ "sc-block-builder",
+ "sc-client-api",
+ "sc-client-db",
+ "sc-consensus",
+ "sc-executor",
+ "sc-service",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-inherents",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-timestamp",
+ "substrate-test-client",
+ "tempfile",
+ "xxnetwork-runtime",
 ]
 
 [[package]]
@@ -12994,6 +13035,31 @@ dependencies = [
  "log",
  "prometheus",
  "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
+name = "substrate-test-client"
+version = "2.0.1"
+source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2509-2#7304752b47858f2cd601b35d0eb734ad4ccbbc48"
+dependencies = [
+ "array-bytes",
+ "async-trait",
+ "futures",
+ "parity-scale-codec",
+ "sc-client-api",
+ "sc-client-db",
+ "sc-consensus",
+ "sc-executor",
+ "sc-service",
+ "serde",
+ "serde_json",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-keyring",
+ "sp-keystore",
+ "sp-runtime",
  "tokio",
 ]
 

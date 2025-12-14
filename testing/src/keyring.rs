@@ -18,40 +18,41 @@
 
 //! Test accounts.
 
-use sp_keyring::{AccountKeyring, Sr25519Keyring, Ed25519Keyring};
+use sp_keyring::{Sr25519Keyring, Ed25519Keyring};
 use node_primitives::{AccountId, Balance, Index};
 use xxnetwork_runtime::{CheckedExtrinsic, UncheckedExtrinsic, SessionKeys, SignedExtra};
+use sp_runtime::generic::{self, ExtrinsicFormat};
 use sp_runtime::generic::Era;
 use codec::Encode;
 
 /// Alice's account id.
 pub fn alice() -> AccountId {
-	AccountKeyring::Alice.into()
+	Sr25519Keyring::Alice.to_account_id()
 }
 
 /// Bob's account id.
 pub fn bob() -> AccountId {
-	AccountKeyring::Bob.into()
+	Sr25519Keyring::Bob.to_account_id()
 }
 
 /// Charlie's account id.
 pub fn charlie() -> AccountId {
-	AccountKeyring::Charlie.into()
+	Sr25519Keyring::Charlie.to_account_id()
 }
 
 /// Dave's account id.
 pub fn dave() -> AccountId {
-	AccountKeyring::Dave.into()
+	Sr25519Keyring::Dave.to_account_id()
 }
 
 /// Eve's account id.
 pub fn eve() -> AccountId {
-	AccountKeyring::Eve.into()
+	Sr25519Keyring::Eve.to_account_id()
 }
 
 /// Ferdie's account id.
 pub fn ferdie() -> AccountId {
-	AccountKeyring::Ferdie.into()
+	Sr25519Keyring::Ferdie.to_account_id()
 }
 
 /// Convert keyrings into `SessionKeys`.
@@ -83,11 +84,13 @@ pub fn signed_extra(nonce: Index, extra_fee: Balance) -> SignedExtra {
 }
 
 /// Sign given `CheckedExtrinsic`.
+///
+/// In the new SDK, CheckedExtrinsic uses `format: ExtrinsicFormat` instead of `signed: Option<...>`.
 pub fn sign(xt: CheckedExtrinsic, spec_version: u32, tx_version: u32, genesis_hash: [u8; 32]) -> UncheckedExtrinsic {
-	match xt.signed {
-		Some((signed, extra)) => {
-			let payload = (xt.function, extra.clone(), spec_version, tx_version, genesis_hash, genesis_hash);
-			let key = AccountKeyring::from_account_id(&signed).unwrap();
+	match xt.format {
+		ExtrinsicFormat::Signed(signed, extra) => {
+			let payload = (xt.function.clone(), extra.clone(), spec_version, tx_version, genesis_hash, genesis_hash);
+			let key = Sr25519Keyring::from_account_id(&signed).unwrap();
 			let signature = payload.using_encoded(|b| {
 				if b.len() > 256 {
 					key.sign(&sp_io::hashing::blake2_256(b))
@@ -95,14 +98,21 @@ pub fn sign(xt: CheckedExtrinsic, spec_version: u32, tx_version: u32, genesis_ha
 					key.sign(b)
 				}
 			}).into();
-			UncheckedExtrinsic {
-				signature: Some((sp_runtime::MultiAddress::Id(signed), signature, extra)),
-				function: payload.0,
-			}
+			// Use generic::UncheckedExtrinsic and convert to the pallet-revive wrapper
+			generic::UncheckedExtrinsic::new_signed(
+				xt.function,
+				sp_runtime::MultiAddress::Id(signed),
+				signature,
+				extra,
+			).into()
 		}
-		None => UncheckedExtrinsic {
-			signature: None,
-			function: xt.function,
-		},
+		ExtrinsicFormat::Bare => {
+			// Bare/unsigned extrinsic
+			generic::UncheckedExtrinsic::new_bare(xt.function).into()
+		}
+		ExtrinsicFormat::General(_extension_version, extra) => {
+			// General transaction (unsigned with extension)
+			generic::UncheckedExtrinsic::new_transaction(xt.function, extra).into()
+		}
 	}
 }

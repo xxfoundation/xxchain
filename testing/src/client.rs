@@ -18,27 +18,30 @@
 
 //! Utilities to build a `TestClient` for `node-runtime`.
 
-use sc_service::client;
 use sp_runtime::BuildStorage;
 /// Re-export test-client utilities.
 pub use substrate_test_client::*;
 
-/// Call executor for `node-runtime` `TestClient`.
-pub type ExecutorDispatch = sc_executor::NativeElseWasmExecutor<node_executor::XXNetworkExecutorDispatch>;
+/// The WasmExecutor type used for test clients.
+pub type WasmExecutorType = sc_executor::WasmExecutor<sp_io::SubstrateHostFunctions>;
 
 /// Default backend type.
 pub type Backend = sc_client_db::Backend<node_primitives::Block>;
 
-/// Test client type.
-pub type Client = client::Client<
+/// Call executor type wrapping WasmExecutor in LocalCallExecutor.
+pub type ExecutorDispatch = sc_service::client::LocalCallExecutor<
+	node_primitives::Block,
 	Backend,
-	client::LocalCallExecutor<node_primitives::Block, Backend, ExecutorDispatch>,
+	WasmExecutorType,
+>;
+
+/// Test client type using LocalCallExecutor with WasmExecutor.
+pub type Client = substrate_test_client::client::Client<
+	Backend,
+	ExecutorDispatch,
 	node_primitives::Block,
 	xxnetwork_runtime::RuntimeApi,
 >;
-
-/// Transaction for node-runtime.
-pub type Transaction = sc_client_api::backend::TransactionFor<Backend, node_primitives::Block>;
 
 /// Genesis configuration parameters for `TestClient`.
 #[derive(Default)]
@@ -50,28 +53,21 @@ impl substrate_test_client::GenesisInit for GenesisParameters {
 	}
 }
 
-/// A `test-runtime` extensions to `TestClientBuilder`.
-pub trait TestClientBuilderExt: Sized {
-	/// Create test client builder.
-	fn new() -> Self;
+/// Type alias for TestClientBuilder with our parameters.
+/// Note: TestClientBuilder expects LocalCallExecutor<Block, Backend, WasmExecutor<H>>
+/// to use build_with_native_executor method.
+pub type TestClientBuilder = substrate_test_client::TestClientBuilder<
+	node_primitives::Block,
+	ExecutorDispatch,
+	Backend,
+	GenesisParameters,
+>;
 
-	/// Build the test client.
-	fn build(self) -> Client;
-}
-
-impl TestClientBuilderExt
-	for substrate_test_client::TestClientBuilder<
-		node_primitives::Block,
-		client::LocalCallExecutor<node_primitives::Block, Backend, ExecutorDispatch>,
-		Backend,
-		GenesisParameters,
-	>
-{
-	fn new() -> Self{
-		Self::default()
-	}
-
-	fn build(self) -> Client {
-		self.build_with_native_executor(None).0
-	}
+/// Build a test client with default settings.
+pub fn new_client() -> Client {
+	let executor: WasmExecutorType = sc_executor::WasmExecutor::builder()
+		.build();
+	TestClientBuilder::default()
+		.build_with_native_executor(executor)
+		.0
 }

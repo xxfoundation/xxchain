@@ -44,7 +44,6 @@ pallet-transaction-payment = { workspace = true, features = ["std"] }
 substrate-test-client = { workspace = true }
 
 # Local
-node-executor = { path = "../executor" }
 node-primitives = { workspace = true, features = ["std"] }
 runtime-common = { workspace = true, features = ["std"] }
 xxnetwork-runtime = { path = "../runtime/xxnetwork" }

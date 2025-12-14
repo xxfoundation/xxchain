@@ -12,7 +12,7 @@ members = [
     'runtime/common',
     'runtime/xxnetwork',
     'swap',
-    # 'testing',  # Temporarily disabled during SDK upgrade - needs API updates
+    'testing',
     'utils/generate-bags',
     'xx-cmix',
     'xx-economics',

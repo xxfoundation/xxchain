@@ -23,4 +23,5 @@
 pub mod client;
 pub mod genesis;
 pub mod keyring;
-pub mod bench;
+// TODO: Re-enable bench module after updating to new SDK client APIs
+// pub mod bench;
