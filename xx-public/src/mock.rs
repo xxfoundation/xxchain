@@ -69,7 +69,6 @@ ord_parameter_types! {
 pub type TestAdminOrigin = EnsureSignedBy<AdminAccount, AccountId>;
 
 impl xx_public::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type VestingSchedule = Vesting;
 	type TestnetId = TestnetId;
 	type SaleId = SaleId;

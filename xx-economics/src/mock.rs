@@ -101,7 +101,6 @@ impl xx_public::PublicAccountsHandler<AccountId> for MockPublicAccountsHandler {
 pub type TestAdminOrigin = EnsureSignedBy<AdminAccount, AccountId>;
 
 impl xx_economics::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type PublicAccountsHandler = MockPublicAccountsHandler;
 	type RewardsPoolId = RewardsPoolId;

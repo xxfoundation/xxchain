@@ -894,7 +894,6 @@ mod tests {
 	}
 
 	impl Config for Test {
-		type RuntimeEvent = RuntimeEvent;
 		type VestingSchedule = Vesting;
 		type Prefix = Prefix;
 		type MoveClaimOrigin = frame_system::EnsureSignedBy<Six, u64>;

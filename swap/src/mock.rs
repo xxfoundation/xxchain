@@ -80,7 +80,6 @@ parameter_types! {
 }
 
 impl bridge::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
 	type Proposal = RuntimeCall;
 	type ChainId = TestChainId;
@@ -93,7 +92,6 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type BridgeOrigin = bridge::EnsureBridge<Test>;
 	type AdminOrigin = bridge::EnsureBridge<Test>;
 	type Currency = Balances;

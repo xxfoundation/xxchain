@@ -262,12 +262,9 @@ impl pallet_staking::Config for Test {
 	type Filter = ();
 }
 
-impl xx_staking_extension::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl xx_staking_extension::Config for Test {}
 
 impl xx_cmix::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type CmixVariablesOrigin = EnsureRoot<AccountId>;
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = weights::SubstrateWeight<Self>;
