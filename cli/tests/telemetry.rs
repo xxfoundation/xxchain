@@ -46,7 +46,7 @@ async fn telemetry_works() {
 				Event::ConnectionOpen { address } => {
 					println!("New connection from {:?}", address);
 					server.accept();
-				},
+				}
 
 				// Received a message from a connection.
 				Event::BinaryFrame { message, .. } => {
@@ -56,12 +56,12 @@ async fn telemetry_works() {
 					if matches!(object.get("best"), Some(serde_json::Value::String(_))) {
 						break
 					}
-				},
+				}
 
 				Event::TextFrame { .. } => panic!("Got a TextFrame over the socket, this is a bug"),
 
 				// Connection has been closed.
-				Event::ConnectionError { .. } => {},
+				Event::ConnectionError { .. } => {}
 			}
 		}
 	});

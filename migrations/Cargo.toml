@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Bernardo Cardoso <bernardo@xx.network>"]
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 log = { workspace = true }
 codec = { workspace = true }

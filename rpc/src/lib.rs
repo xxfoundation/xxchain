@@ -132,13 +132,7 @@ where
 	io.merge(System::new(client.clone(), pool).into_rpc())?;
 	io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 	io.merge(
-		Babe::new(
-			client.clone(),
-			babe_worker_handle.clone(),
-			keystore,
-			select_chain,
-		)
-		.into_rpc(),
+		Babe::new(client.clone(), babe_worker_handle.clone(), keystore, select_chain).into_rpc(),
 	)?;
 	io.merge(
 		Grandpa::new(

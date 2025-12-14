@@ -57,12 +57,12 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: XXSale TestnetManager (r:0 w:1)
 	fn set_testnet_manager_account() -> Weight {
 		Weight::from_parts(23_000_000, 1000)
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	// Storage: XXSale SaleManager (r:0 w:1)
 	fn set_sale_manager_account() -> Weight {
 		Weight::from_parts(23_000_000, 1000)
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	// Storage: XXSale TestnetManager (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -72,10 +72,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		Weight::from_parts(29_562_000, 1000)
 			// Standard Error: 207_000
 			.saturating_add(Weight::from_parts(156_832_000, 1000).saturating_mul(n as u64))
-			.saturating_add(T::DbWeight::get().reads(2 as u64))
-			.saturating_add(T::DbWeight::get().reads((3 as u64).saturating_mul(n as u64)))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().reads(3_u64.saturating_mul(n as u64)))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64.saturating_mul(n as u64)))
 	}
 	// Storage: XXSale SaleManager (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -85,10 +85,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		Weight::from_parts(28_017_000, 1000)
 			// Standard Error: 121_000
 			.saturating_add(Weight::from_parts(156_326_000, 1000).saturating_mul(n as u64))
-			.saturating_add(T::DbWeight::get().reads(2 as u64))
-			.saturating_add(T::DbWeight::get().reads((3 as u64).saturating_mul(n as u64)))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().reads(3_u64.saturating_mul(n as u64)))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64.saturating_mul(n as u64)))
 	}
 }
 
@@ -97,12 +97,12 @@ impl WeightInfo for () {
 	// Storage: XXSale TestnetManager (r:0 w:1)
 	fn set_testnet_manager_account() -> Weight {
 		Weight::from_parts(23_000_000, 1000)
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	// Storage: XXSale SaleManager (r:0 w:1)
 	fn set_sale_manager_account() -> Weight {
 		Weight::from_parts(23_000_000, 1000)
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	// Storage: XXSale TestnetManager (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -112,10 +112,10 @@ impl WeightInfo for () {
 		Weight::from_parts(29_562_000, 1000)
 			// Standard Error: 207_000
 			.saturating_add(Weight::from_parts(156_832_000, 1000).saturating_mul(n as u64))
-			.saturating_add(RocksDbWeight::get().reads(2 as u64))
-			.saturating_add(RocksDbWeight::get().reads((3 as u64).saturating_mul(n as u64)))
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
-			.saturating_add(RocksDbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().reads(3_u64.saturating_mul(n as u64)))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64.saturating_mul(n as u64)))
 	}
 	// Storage: XXSale SaleManager (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -125,9 +125,9 @@ impl WeightInfo for () {
 		Weight::from_parts(28_017_000, 1000)
 			// Standard Error: 121_000
 			.saturating_add(Weight::from_parts(156_326_000, 1000).saturating_mul(n as u64))
-			.saturating_add(RocksDbWeight::get().reads(2 as u64))
-			.saturating_add(RocksDbWeight::get().reads((3 as u64).saturating_mul(n as u64)))
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
-			.saturating_add(RocksDbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().reads(3_u64.saturating_mul(n as u64)))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64.saturating_mul(n as u64)))
 	}
 }

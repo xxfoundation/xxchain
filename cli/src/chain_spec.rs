@@ -19,20 +19,22 @@
 //! Substrate chain configurations.
 
 use sc_chain_spec::{ChainSpecExtension, ChainType};
-use sp_core::{Pair, Public, sr25519};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use sp_core::{sr25519, Pair, Public};
 
-pub use xxnetwork_runtime as xxnetwork;
-use runtime_common::constants::currency::UNITS;
 use frame_support::PalletId;
-use sp_runtime::traits::AccountIdConversion;
-use sp_consensus_grandpa::{AuthorityId as GrandpaId};
-use sp_consensus_babe::{AuthorityId as BabeId};
-use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use runtime_common::constants::currency::UNITS;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
+use sp_consensus_babe::AuthorityId as BabeId;
+use sp_consensus_grandpa::AuthorityId as GrandpaId;
+use sp_runtime::{
+	traits::{AccountIdConversion, IdentifyAccount, Verify},
+	Perbill,
+};
+pub use xxnetwork_runtime as xxnetwork;
 
-pub use node_primitives::{AccountId, Balance, Block, Signature, Hash};
+pub use node_primitives::{AccountId, Balance, Block, Hash, Signature};
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -67,21 +69,17 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 }
 
 /// Helper function to generate an account ID from seed
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId where
-	AccountPublic: From<<TPublic::Pair as Pair>::Public>
+pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+where
+	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
 {
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
 /// Helper function to generate stash, controller and session key from seed
-pub fn authority_keys_from_seed(seed: &str) -> (
-	AccountId,
-	AccountId,
-	GrandpaId,
-	BabeId,
-	ImOnlineId,
-	AuthorityDiscoveryId,
-) {
+pub fn authority_keys_from_seed(
+	seed: &str,
+) -> (AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId) {
 	(
 		get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
 		get_account_id_from_seed::<sr25519::Public>(seed),
@@ -118,9 +116,7 @@ pub fn xxnetwork_development_config() -> XXNetworkChainSpec {
 fn development_genesis_config_patch() -> serde_json::Value {
 	use serde_json::json;
 
-	let initial_authorities = vec![
-		authority_keys_from_seed("Alice"),
-	];
+	let initial_authorities = vec![authority_keys_from_seed("Alice")];
 
 	let endowed_accounts: Vec<AccountId> = vec![
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -143,9 +139,8 @@ fn development_genesis_config_patch() -> serde_json::Value {
 	const DISTRIBUTION_BALANCE: Balance = 1_000_000 * UNITS;
 
 	// Build balances including pallet accounts for benchmarks
-	let mut balances: Vec<(AccountId, Balance)> = endowed_accounts.iter()
-		.map(|x| (x.clone(), ENDOWMENT))
-		.collect();
+	let mut balances: Vec<(AccountId, Balance)> =
+		endowed_accounts.iter().map(|x| (x.clone(), ENDOWMENT)).collect();
 	// Fund treasury account for pallet_treasury benchmarks
 	balances.push((treasury_account.clone(), ENDOWMENT));
 	// Fund bridge account for swap benchmarks

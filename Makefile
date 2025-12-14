@@ -62,3 +62,23 @@ test-pallets:
 	@cd xx-economics; cargo test; cd ../
 	@cd xx-public; cargo test; cd ../
 	@cd xx-team-custody; cargo test; cd ../
+
+#######################
+###  code quality   ###
+#######################
+
+# Format all code using nightly rustfmt
+fmt:
+	@cargo +nightly fmt --all
+
+# Check formatting without making changes
+fmt-check:
+	@cargo +nightly fmt --all -- --check
+
+# Run clippy linter
+lint:
+	@cargo clippy --workspace --all-targets -- -D warnings
+
+# Run clippy and apply automatic fixes
+lint-fix:
+	@cargo clippy --workspace --all-targets --fix --allow-dirty

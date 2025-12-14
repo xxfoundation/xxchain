@@ -3,9 +3,9 @@
 
 use super::*;
 
-use frame_benchmarking::{benchmarks, account, impl_benchmark_test_suite, BenchmarkError};
-use frame_system::RawOrigin;
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, BenchmarkError};
 use frame_support::traits::UnfilteredDispatchable;
+use frame_system::RawOrigin;
 use sp_runtime::traits::Bounded;
 
 const SEED: u32 = 0;
@@ -17,7 +17,7 @@ fn account_from_index<T: Config>(index: u32) -> T::AccountId {
 	account("x", index, SEED)
 }
 
-benchmarks!{
+benchmarks! {
 
 	transfer_native {
 		// worst case should result in a call into the chainbridge pallet
@@ -37,7 +37,7 @@ benchmarks!{
 	}: _(RawOrigin::Signed(payer), amount, TEST_RECIPIENT_ADDR.to_vec(), TEST_DESTINATION_CHAIN)
 
 
- 	transfer {
+	 transfer {
 		let amount = T::Currency::minimum_balance() * 10u32.into();
 		let dest = account_from_index::<T>(1);
 		let origin = T::BridgeOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
@@ -64,9 +64,4 @@ benchmarks!{
 	}: _(RawOrigin::Root, account_from_index::<T>(1))
 }
 
-
-impl_benchmark_test_suite!(
-  Swap,
-  crate::mock::new_test_ext(&[]),
-  crate::mock::Test,
-);
+impl_benchmark_test_suite!(Swap, crate::mock::new_test_ext(&[]), crate::mock::Test,);

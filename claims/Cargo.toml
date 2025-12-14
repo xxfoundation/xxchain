@@ -4,6 +4,9 @@ version = "0.2.1"
 authors = ["Parity Technologies <admin@parity.io>", "xxlabs <admin@xx.network>"]
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 codec = { workspace = true, package = "parity-scale-codec" }
 scale-info = { workspace = true }

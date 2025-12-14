@@ -274,3 +274,22 @@ xx-public = { path = "xx-public", default-features = false }
 xx-staking-extension = { path = "xx-staking-extension", default-features = false }
 xx-team-custody = { path = "xx-team-custody", default-features = false }
 migrations = { path = "migrations", default-features = false }
+
+# =============================================================================
+# Workspace Lints
+# =============================================================================
+# Centralized lint configuration for the workspace.
+# Individual crates inherit via: [lints] workspace = true
+# =============================================================================
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(substrate_runtime)"] }
+
+[workspace.lints.clippy]
+all = { level = "allow", priority = 0 }
+correctness = { level = "warn", priority = 1 }
+complexity = { level = "warn", priority = 1 }
+# Allow pragmatic exceptions for macro-generated code
+too-many-arguments = "allow"
+type_complexity = "allow"
+needless-lifetimes = "allow"

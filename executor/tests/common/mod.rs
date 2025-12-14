@@ -18,44 +18,42 @@
 // NOTE: This module is only compiled when executor-tests feature is enabled.
 #![cfg(feature = "executor-tests")]
 
-use codec::{Encode, Decode};
-use frame_system::offchain::AppCrypto;
+use codec::{Decode, Encode};
 use frame_support::Hashable;
-use sp_state_machine::TestExternalities as CoreTestExternalities;
-use sp_consensus_babe::{BABE_ENGINE_ID, Slot, digests::{PreDigest, SecondaryPlainPreDigest}};
+use frame_system::offchain::AppCrypto;
+use sc_executor::{error::Result, WasmExecutor};
+use sp_consensus_babe::{
+	digests::{PreDigest, SecondaryPlainPreDigest},
+	Slot, BABE_ENGINE_ID,
+};
 use sp_core::{
 	crypto::KeyTypeId,
 	sr25519::Signature,
 	traits::{CallContext, CodeExecutor, RuntimeCode},
 };
 use sp_runtime::{
-	ApplyExtrinsicResult,
-	MultiSigner,
-	MultiSignature,
-	Digest,
-	DigestItem,
-	traits::{Header as HeaderT, BlakeTwo256},
+	traits::{BlakeTwo256, Header as HeaderT},
+	ApplyExtrinsicResult, Digest, DigestItem, MultiSignature, MultiSigner,
 };
-use sc_executor::WasmExecutor;
-use sc_executor::error::Result;
+use sp_state_machine::TestExternalities as CoreTestExternalities;
 
-use xxnetwork_runtime::{
-	Header, Block, UncheckedExtrinsic, CheckedExtrinsic, Runtime, BuildStorage, SignedExtra,
-};
+use node_primitives::{AccountId, Balance, BlockNumber, Hash};
 use runtime_common::constants::currency::*;
-use node_primitives::{AccountId, Hash, BlockNumber, Balance};
+use xxnetwork_runtime::{
+	Block, BuildStorage, CheckedExtrinsic, Header, Runtime, SignedExtra, UncheckedExtrinsic,
+};
 // Note: Nonce is not exported from node_primitives, use u32 directly
 use sp_externalities::Externalities;
+use sp_io;
 use sp_keyring::Sr25519Keyring;
 use sp_runtime::generic::{self, ExtrinsicFormat};
-use sp_io;
 
 pub const TEST_KEY_TYPE_ID: KeyTypeId = KeyTypeId(*b"test");
 
 pub mod sr25519 {
 	mod app_sr25519 {
-		use sp_application_crypto::{app_crypto, sr25519};
 		use super::super::TEST_KEY_TYPE_ID;
+		use sp_application_crypto::{app_crypto, sr25519};
 		app_crypto!(sr25519, TEST_KEY_TYPE_ID);
 	}
 
@@ -108,8 +106,10 @@ pub fn signed_extra(nonce: u32, extra_fee: Balance) -> SignedExtra {
 /// as canonical. This is why `native_executor_instance` also uses the compact version of the
 /// runtime.
 pub fn compact_code_unwrap() -> &'static [u8] {
-	xxnetwork_runtime::WASM_BINARY.expect("Development wasm binary is not available. \
-									  Testing is only supported with the flag disabled.")
+	xxnetwork_runtime::WASM_BINARY.expect(
+		"Development wasm binary is not available. \
+									  Testing is only supported with the flag disabled.",
+	)
 }
 
 pub const GENESIS_HASH: [u8; 32] = [69u8; 32];
@@ -126,22 +126,32 @@ pub type TestExternalities<H> = CoreTestExternalities<H>;
 pub fn sign(xt: CheckedExtrinsic) -> UncheckedExtrinsic {
 	match xt.format {
 		ExtrinsicFormat::Signed(signed, extra) => {
-			let payload = (xt.function.clone(), extra.clone(), SPEC_VERSION, TRANSACTION_VERSION, GENESIS_HASH, GENESIS_HASH);
+			let payload = (
+				xt.function.clone(),
+				extra.clone(),
+				SPEC_VERSION,
+				TRANSACTION_VERSION,
+				GENESIS_HASH,
+				GENESIS_HASH,
+			);
 			let key = Sr25519Keyring::from_account_id(&signed).unwrap();
-			let signature = payload.using_encoded(|b| {
-				if b.len() > 256 {
-					key.sign(&sp_io::hashing::blake2_256(b))
-				} else {
-					key.sign(b)
-				}
-			}).into();
+			let signature = payload
+				.using_encoded(|b| {
+					if b.len() > 256 {
+						key.sign(&sp_io::hashing::blake2_256(b))
+					} else {
+						key.sign(b)
+					}
+				})
+				.into();
 			// Use generic::UncheckedExtrinsic and convert to the pallet-revive wrapper
 			generic::UncheckedExtrinsic::new_signed(
 				xt.function,
 				sp_runtime::MultiAddress::Id(signed),
 				signature,
 				extra,
-			).into()
+			)
+			.into()
 		}
 		ExtrinsicFormat::Bare => {
 			// Bare/unsigned extrinsic
@@ -225,15 +235,14 @@ pub fn construct_block(
 		extrinsics_root,
 		state_root: Default::default(),
 		digest: Digest {
-			logs: vec![
-				DigestItem::PreRuntime(
-					BABE_ENGINE_ID,
-					PreDigest::SecondaryPlain(SecondaryPlainPreDigest {
-						slot: babe_slot,
-						authority_index: 42,
-					}).encode()
-				),
-			],
+			logs: vec![DigestItem::PreRuntime(
+				BABE_ENGINE_ID,
+				PreDigest::SecondaryPlain(SecondaryPlainPreDigest {
+					slot: babe_slot,
+					authority_index: 42,
+				})
+				.encode(),
+			)],
 		},
 	};
 
@@ -249,7 +258,7 @@ pub fn construct_block(
 		match ApplyExtrinsicResult::decode(&mut &r[..])
 			.expect("apply result deserialization failed")
 		{
-			Ok(_) => {},
+			Ok(_) => {}
 			Err(e) => panic!("Applying extrinsic failed: {:?}", e),
 		}
 	}

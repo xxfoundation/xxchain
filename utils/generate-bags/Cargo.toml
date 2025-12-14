@@ -4,6 +4,9 @@ version = "0.2.6"
 authors = ["Bernardo Cardoso <bernardo@xx.network>"]
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 clap = { version = "4.0.9", features = ["derive"] }
 

@@ -4,17 +4,15 @@
 use super::*;
 use crate::Module as XXCmix;
 
-use frame_benchmarking::{benchmarks, account, impl_benchmark_test_suite};
-use frame_system::RawOrigin;
-use frame_system::pallet_prelude::BlockNumberFor;
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::traits::OriginTrait;
+use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use sp_runtime::traits::Bounded;
 
 const SEED: u32 = 0;
 
 const MAX_POINTS: u32 = 99;
 const MAX_DEDUCTIONS: u32 = 99;
-
 
 fn account_from_index<T: Config>(index: u32) -> T::AccountId {
 	account("x", index, SEED)
@@ -30,7 +28,7 @@ fn set_admin<T: Config>() {
 	XXCmix::<T>::set_admin_permission(T::RuntimeOrigin::root(), block).ok();
 }
 
-benchmarks!{
+benchmarks! {
 
 	set_cmix_hashes {
 		set_admin::<T>();
@@ -84,14 +82,7 @@ benchmarks!{
 	set_admin_permission {
 
 	}: _(RawOrigin::Root, BlockNumberFor::<T>::max_value())
- 	
+
 }
 
-
-
-
-impl_benchmark_test_suite!(
-  XXCmix,
-  crate::mock::ExtBuilder::default().build(),
-  crate::mock::Test,
-);
+impl_benchmark_test_suite!(XXCmix, crate::mock::ExtBuilder::default().build(), crate::mock::Test,);

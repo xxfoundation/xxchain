@@ -7,6 +7,9 @@ license = "Apache-2.0"
 description = "xx network staking extension pallet - wraps pallet-staking with additional functionality"
 repository = "https://github.com/xx-labs/xxchain"
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 

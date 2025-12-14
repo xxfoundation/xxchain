@@ -20,11 +20,8 @@ use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use frame_support::Hashable;
 use node_executor::XXNetworkExecutorDispatch;
 use node_primitives::{BlockNumber, Hash};
-use xxnetwork_runtime::{
-	Block, BuildStorage, RuntimeCall, CheckedExtrinsic, GenesisConfig, Header, UncheckedExtrinsic,
-};
-use runtime_common::constants::currency::*;
 use node_testing::keyring::*;
+use runtime_common::constants::currency::*;
 #[cfg(feature = "wasmtime")]
 use sc_executor::WasmtimeInstantiationStrategy;
 use sc_executor::{Externalities, NativeElseWasmExecutor, RuntimeVersionOf, WasmExecutionMethod};
@@ -34,14 +31,19 @@ use sp_core::{
 };
 use sp_runtime::traits::BlakeTwo256;
 use sp_state_machine::TestExternalities as CoreTestExternalities;
+use xxnetwork_runtime::{
+	Block, BuildStorage, CheckedExtrinsic, GenesisConfig, Header, RuntimeCall, UncheckedExtrinsic,
+};
 
 criterion_group!(benches, bench_execute_block);
 criterion_main!(benches);
 
 /// The wasm runtime code.
 pub fn compact_code_unwrap() -> &'static [u8] {
-	xxnetwork_runtime::WASM_BINARY.expect("Development wasm binary is not available. \
-									  Testing is only supported with the flag disabled.")
+	xxnetwork_runtime::WASM_BINARY.expect(
+		"Development wasm binary is not available. \
+									  Testing is only supported with the flag disabled.",
+	)
 }
 
 const GENESIS_HASH: [u8; 32] = [69u8; 32];
@@ -69,9 +71,7 @@ fn new_test_ext(genesis_config: &GenesisConfig) -> TestExternalities<BlakeTwo256
 		compact_code_unwrap(),
 		genesis_config.build_storage().unwrap(),
 	);
-	test_ext
-		.ext()
-		.place_storage(well_known_keys::HEAP_PAGES.to_vec(), Some(HEAP_PAGES.encode()));
+	test_ext.ext().place_storage(well_known_keys::HEAP_PAGES.to_vec(), Some(HEAP_PAGES.encode()));
 	test_ext
 }
 
@@ -153,22 +153,21 @@ fn construct_block<E: Externalities>(
 	(Block { header, extrinsics }.encode(), hash.into())
 }
 
-
 fn test_blocks(
 	genesis_config: &GenesisConfig,
 	executor: &NativeElseWasmExecutor<XXNetworkExecutorDispatch>,
 ) -> Vec<(Vec<u8>, Hash)> {
 	let mut test_ext = new_test_ext(genesis_config);
 	let mut block1_extrinsics = vec![CheckedExtrinsic {
-			signed: None,
-			function: RuntimeCall::Timestamp(pallet_timestamp::Call::set { now: 0 }),
+		signed: None,
+		function: RuntimeCall::Timestamp(pallet_timestamp::Call::set { now: 0 }),
 	}];
 	block1_extrinsics.extend((0..20).map(|i| CheckedExtrinsic {
-			signed: Some((alice(), signed_extra(i, 0))),
-			function: RuntimeCall::Balances(pallet_balances::Call::transfer {
-				dest: bob().into(),
-				value: 1 * UNITS
-			}),
+		signed: Some((alice(), signed_extra(i, 0))),
+		function: RuntimeCall::Balances(pallet_balances::Call::transfer {
+			dest: bob().into(),
+			value: 1 * UNITS,
+		}),
 	}));
 	let block1 =
 		construct_block(executor, &mut test_ext.ext(), 1, GENESIS_HASH.into(), block1_extrinsics);

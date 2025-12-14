@@ -4,16 +4,20 @@
 use super::*;
 use crate::Pallet as XXCustody;
 
-use frame_benchmarking::{benchmarks, account, impl_benchmark_test_suite};
-use frame_system::RawOrigin;
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::traits::Currency;
+use frame_system::RawOrigin;
 use sp_runtime::traits::{Bounded, SaturatedConversion};
 
 const SEED: u32 = 0;
 
-fn team_member<T: Config>() -> T::AccountId { <TeamAccounts<T>>::iter().next().expect("No team members set in genesis config").0 }
+fn team_member<T: Config>() -> T::AccountId {
+	<TeamAccounts<T>>::iter().next().expect("No team members set in genesis config").0
+}
 
-fn custodian<T: Config>() -> T::AccountId { <Custodians<T>>::iter().next().expect("No custodians set in genesis config").0 }
+fn custodian<T: Config>() -> T::AccountId {
+	<Custodians<T>>::iter().next().expect("No custodians set in genesis config").0
+}
 
 fn account_from_index<T: Config>(index: u32) -> T::AccountId {
 	account("x", index, SEED)
@@ -24,7 +28,7 @@ fn min_balance<T: Config>() -> BalanceOf<T> {
 	<<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::minimum_balance()
 }
 
-benchmarks!{
+benchmarks! {
 
 	payout {
 		// worst case:
@@ -49,9 +53,9 @@ benchmarks!{
 
 		// set up a proxy
 		XXCustody::<T>::custody_set_proxy(
-		    RawOrigin::Signed(custodian).into(),
-		    info.custody,
-		    proxy,
+			RawOrigin::Signed(custodian).into(),
+			info.custody,
+			proxy,
 		).expect("Failed to set proxy");
 
 		// run to the end of the custody period
@@ -113,7 +117,7 @@ benchmarks!{
 
 	}: _(RawOrigin::Signed(custodian.clone()), info.custody, proxy)
 
- 	team_custody_set_proxy {
+	 team_custody_set_proxy {
 		let team = team_member::<T>();
 		let proxy = account_from_index::<T>(11);
 
@@ -132,27 +136,24 @@ benchmarks!{
 
   // these are all simple add/remove operations
 
- 	add_custodian {
+	 add_custodian {
 
- 	}: _(RawOrigin::Root, account_from_index::<T>(5))
+	 }: _(RawOrigin::Root, account_from_index::<T>(5))
 
- 	remove_custodian {
+	 remove_custodian {
 
- 	}: _(RawOrigin::Root, custodian::<T>())
+	 }: _(RawOrigin::Root, custodian::<T>())
 
- 	replace_team_member {
+	 replace_team_member {
 
- 	}: _(RawOrigin::Root, team_member::<T>(), account_from_index::<T>(6))
+	 }: _(RawOrigin::Root, team_member::<T>(), account_from_index::<T>(6))
 }
 
-
-
-
 impl_benchmark_test_suite!(
-  XXCustody,
-  crate::mock::ExtBuilder::default()
-  	.with_custodians(&[11])
-  	.with_team_allocations(&[(22, 1000)])
-  	.build(),
-  crate::mock::Test,
+	XXCustody,
+	crate::mock::ExtBuilder::default()
+		.with_custodians(&[11])
+		.with_team_allocations(&[(22, 1000)])
+		.build(),
+	crate::mock::Test,
 );

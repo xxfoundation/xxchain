@@ -2,100 +2,100 @@
 
 use super::*;
 
-use frame_support::{assert_ok, ord_parameter_types, parameter_types, derive_impl};
+use frame_support::{assert_ok, derive_impl, ord_parameter_types, parameter_types};
 use sp_core::H256;
 use sp_runtime::{
-    traits::{BlakeTwo256, IdentityLookup},
-    Perbill, BuildStorage,
+	traits::{BlakeTwo256, IdentityLookup},
+	BuildStorage, Perbill,
 };
 
 use crate::{self as bridge, Config};
 pub use pallet_balances as balances;
 
 parameter_types! {
-    pub const BlockHashCount: u64 = 250;
-    pub const MaximumBlockLength: u32 = 2 * 1024;
-    pub const AvailableBlockRatio: Perbill = Perbill::one();
-    pub const MaxLocks: u32 = 100;
+	pub const BlockHashCount: u64 = 250;
+	pub const MaximumBlockLength: u32 = 2 * 1024;
+	pub const AvailableBlockRatio: Perbill = Perbill::one();
+	pub const MaxLocks: u32 = 100;
 }
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
-    type BaseCallFilter = frame_support::traits::Everything;
-    type RuntimeOrigin = RuntimeOrigin;
-    type RuntimeCall = RuntimeCall;
-    type Hash = H256;
-    type Hashing = BlakeTwo256;
-    type AccountId = u64;
-    type Lookup = IdentityLookup<Self::AccountId>;
-    type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = BlockHashCount;
-    type DbWeight = ();
-    type Version = ();
-    type AccountData = pallet_balances::AccountData<u64>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type SystemWeightInfo = ();
-    type PalletInfo = PalletInfo;
-    type BlockWeights = ();
-    type BlockLength = ();
-    type SS58Prefix = ();
-    type OnSetCode = ();
-    type MaxConsumers = frame_support::traits::ConstU32<16>;
-    type Block = Block;
+	type BaseCallFilter = frame_support::traits::Everything;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type Hash = H256;
+	type Hashing = BlakeTwo256;
+	type AccountId = u64;
+	type Lookup = IdentityLookup<Self::AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type BlockHashCount = BlockHashCount;
+	type DbWeight = ();
+	type Version = ();
+	type AccountData = pallet_balances::AccountData<u64>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
+	type PalletInfo = PalletInfo;
+	type BlockWeights = ();
+	type BlockLength = ();
+	type SS58Prefix = ();
+	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type Block = Block;
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: u64 = 1;
+	pub const ExistentialDeposit: u64 = 1;
 }
 
 ord_parameter_types! {
-    pub const One: u64 = 1;
+	pub const One: u64 = 1;
 }
 
 #[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
 impl pallet_balances::Config for Test {
-    type Balance = u64;
-    type DustRemoval = ();
-    type RuntimeEvent = RuntimeEvent;
-    type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = System;
-    type MaxLocks = MaxLocks;
-    type WeightInfo = ();
-    type MaxReserves = ();
-    type ReserveIdentifier = [u8; 8];
-    type RuntimeHoldReason = ();
-    type RuntimeFreezeReason = ();
-    type FreezeIdentifier = ();
-    type MaxFreezes = ();
-    type DoneSlashHandler = ();
+	type Balance = u64;
+	type DustRemoval = ();
+	type RuntimeEvent = RuntimeEvent;
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = System;
+	type MaxLocks = MaxLocks;
+	type WeightInfo = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = ();
+	type RuntimeFreezeReason = ();
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type DoneSlashHandler = ();
 }
 
 const PALLET_ID: PalletId = PalletId(*b"cb/bridg");
 
 parameter_types! {
-    pub const TestChainId: u8 = 5;
-    pub const ProposalLifetime: u64 = 50;
-    pub const ChainbridgePalletId: PalletId = PALLET_ID;
+	pub const TestChainId: u8 = 5;
+	pub const ProposalLifetime: u64 = 50;
+	pub const ChainbridgePalletId: PalletId = PALLET_ID;
 }
 
 impl Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
-    type Proposal = RuntimeCall;
-    type ChainId = TestChainId;
-    type ProposalLifetime = ProposalLifetime;
-    type PalletId = ChainbridgePalletId;
+	type RuntimeEvent = RuntimeEvent;
+	type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
+	type Proposal = RuntimeCall;
+	type ChainId = TestChainId;
+	type ProposalLifetime = ProposalLifetime;
+	type PalletId = ChainbridgePalletId;
 }
 
 frame_support::construct_runtime!(
-    pub enum Test {
-        System: frame_system,
-        Balances: balances,
-        Bridge: bridge,
-    }
+	pub enum Test {
+		System: frame_system,
+		Balances: balances,
+		Bridge: bridge,
+	}
 );
 
 // pub const BRIDGE_ID: u64 =
@@ -106,55 +106,51 @@ pub const ENDOWED_BALANCE: u64 = 100_000_000;
 pub const TEST_THRESHOLD: u32 = 2;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut t = frame_system::GenesisConfig::<Test>::default()
-        .build_storage()
-        .unwrap();
-    pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(PALLET_ID.into_account_truncating(), ENDOWED_BALANCE)],
-        dev_accounts: None,
-    }
-    .assimilate_storage(&mut t)
-    .unwrap();
-    let mut ext = sp_io::TestExternalities::new(t);
-    ext.execute_with(|| System::set_block_number(1));
-    ext
+	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	pallet_balances::GenesisConfig::<Test> {
+		balances: vec![(PALLET_ID.into_account_truncating(), ENDOWED_BALANCE)],
+		dev_accounts: None,
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+	let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| System::set_block_number(1));
+	ext
 }
 
 pub fn new_test_ext_initialized(
-    src_id: ChainId,
-    r_id: ResourceId,
-    resource: Vec<u8>,
+	src_id: ChainId,
+	r_id: ResourceId,
+	resource: Vec<u8>,
 ) -> sp_io::TestExternalities {
-    let mut t = new_test_ext();
-    t.execute_with(|| {
-        // Set and check threshold
-        assert_ok!(Bridge::set_threshold(RuntimeOrigin::root(), TEST_THRESHOLD));
-        assert_eq!(Bridge::relayer_threshold(), TEST_THRESHOLD);
-        // Add relayers
-        assert_ok!(Bridge::add_relayer(RuntimeOrigin::root(), RELAYER_A));
-        assert_ok!(Bridge::add_relayer(RuntimeOrigin::root(), RELAYER_B));
-        assert_ok!(Bridge::add_relayer(RuntimeOrigin::root(), RELAYER_C));
-        // Whitelist chain
-        assert_ok!(Bridge::whitelist_chain(RuntimeOrigin::root(), src_id));
-        // Set and check resource ID mapped to some junk data
-        assert_ok!(Bridge::set_resource(RuntimeOrigin::root(), r_id, resource));
-        assert_eq!(Bridge::resource_exists(r_id), true);
-    });
-    t
+	let mut t = new_test_ext();
+	t.execute_with(|| {
+		// Set and check threshold
+		assert_ok!(Bridge::set_threshold(RuntimeOrigin::root(), TEST_THRESHOLD));
+		assert_eq!(Bridge::relayer_threshold(), TEST_THRESHOLD);
+		// Add relayers
+		assert_ok!(Bridge::add_relayer(RuntimeOrigin::root(), RELAYER_A));
+		assert_ok!(Bridge::add_relayer(RuntimeOrigin::root(), RELAYER_B));
+		assert_ok!(Bridge::add_relayer(RuntimeOrigin::root(), RELAYER_C));
+		// Whitelist chain
+		assert_ok!(Bridge::whitelist_chain(RuntimeOrigin::root(), src_id));
+		// Set and check resource ID mapped to some junk data
+		assert_ok!(Bridge::set_resource(RuntimeOrigin::root(), r_id, resource));
+		assert_eq!(Bridge::resource_exists(r_id), true);
+	});
+	t
 }
 
 // Checks events against the latest. A contiguous set of events must be provided. They must
 // include the most recent event, but do not have to include every past event.
 pub fn assert_events(mut expected: Vec<RuntimeEvent>) {
-    let mut actual: Vec<RuntimeEvent> = frame_system::Pallet::<Test>::events()
-        .iter()
-        .map(|e| e.event.clone())
-        .collect();
+	let mut actual: Vec<RuntimeEvent> =
+		frame_system::Pallet::<Test>::events().iter().map(|e| e.event.clone()).collect();
 
-    expected.reverse();
+	expected.reverse();
 
-    for evt in expected {
-        let next = actual.pop().expect("event expected");
-        assert_eq!(next, evt.into(), "Events don't match (actual,expected)");
-    }
+	for evt in expected {
+		let next = actual.pop().expect("event expected");
+		assert_eq!(next, evt, "Events don't match (actual,expected)");
+	}
 }

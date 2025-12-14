@@ -29,11 +29,8 @@ pub type WasmExecutorType = sc_executor::WasmExecutor<sp_io::SubstrateHostFuncti
 pub type Backend = sc_client_db::Backend<node_primitives::Block>;
 
 /// Call executor type wrapping WasmExecutor in LocalCallExecutor.
-pub type ExecutorDispatch = sc_service::client::LocalCallExecutor<
-	node_primitives::Block,
-	Backend,
-	WasmExecutorType,
->;
+pub type ExecutorDispatch =
+	sc_service::client::LocalCallExecutor<node_primitives::Block, Backend, WasmExecutorType>;
 
 /// Test client type using LocalCallExecutor with WasmExecutor.
 pub type Client = substrate_test_client::client::Client<
@@ -65,9 +62,6 @@ pub type TestClientBuilder = substrate_test_client::TestClientBuilder<
 
 /// Build a test client with default settings.
 pub fn new_client() -> Client {
-	let executor: WasmExecutorType = sc_executor::WasmExecutor::builder()
-		.build();
-	TestClientBuilder::default()
-		.build_with_native_executor(executor)
-		.0
+	let executor: WasmExecutorType = sc_executor::WasmExecutor::builder().build();
+	TestClientBuilder::default().build_with_native_executor(executor).0
 }

@@ -6,6 +6,9 @@ edition = "2021"
 homepage = "https://xx.network"
 repository = "https://github.com/xx-labs/xxchain/"
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 

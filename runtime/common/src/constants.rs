@@ -44,8 +44,8 @@ macro_rules! prod_or_fast {
 pub mod currency {
 	use node_primitives::Balance;
 
-	pub const UNITS: Balance = 1_000_000_000;    // 1_000_000_000
-	pub const CENTS: Balance = UNITS / 100;      //    10_000_000
+	pub const UNITS: Balance = 1_000_000_000; // 1_000_000_000
+	pub const CENTS: Balance = UNITS / 100; //    10_000_000
 	pub const MILLICENTS: Balance = CENTS / 1_000; //        10_000
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
@@ -55,8 +55,8 @@ pub mod currency {
 
 /// Time.
 pub mod time {
-	use node_primitives::{Moment, BlockNumber};
 	use crate::prod_or_fast;
+	use node_primitives::{BlockNumber, Moment};
 
 	/// Since BABE is probabilistic this is the average expected block time that
 	/// we are targeting. Blocks will be produced at a minimum duration defined
@@ -90,17 +90,18 @@ pub mod time {
 	pub const HOURS: BlockNumber = prod_or_fast!(MINUTES * 60, 5);
 	pub const DAYS: BlockNumber = HOURS * 24;
 	pub const WEEKS: BlockNumber = 7 * DAYS;
-	pub const YEARS: BlockNumber = 365 * DAYS + 6*HOURS;
+	pub const YEARS: BlockNumber = 365 * DAYS + 6 * HOURS;
 }
 
 /// Fee-related.
 pub mod fee {
-	pub use sp_runtime::Perbill;
-	use node_primitives::Balance;
-	use frame_support::weights::{constants::ExtrinsicBaseWeight,
-		WeightToFeePolynomial, WeightToFeeCoefficient, WeightToFeeCoefficients,
+	use frame_support::weights::{
+		constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		WeightToFeePolynomial,
 	};
+	use node_primitives::Balance;
 	use smallvec::smallvec;
+	pub use sp_runtime::Perbill;
 
 	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
 	/// node's balance type.

@@ -19,14 +19,13 @@
 //! Genesis Configuration.
 
 use crate::keyring::*;
-use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
-use xxnetwork_runtime::{
-	RuntimeGenesisConfig, BalancesConfig, SessionConfig, StakingConfig,
-	GrandpaConfig, SwapConfig,
-	AccountId, StakerStatus, BabeConfig, BABE_GENESIS_EPOCH_CONFIG,
-};
 use runtime_common::constants::currency::UNITS;
+use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
 use sp_runtime::Perbill;
+use xxnetwork_runtime::{
+	AccountId, BabeConfig, BalancesConfig, GrandpaConfig, RuntimeGenesisConfig, SessionConfig,
+	StakerStatus, StakingConfig, SwapConfig, BABE_GENESIS_EPOCH_CONFIG,
+};
 
 /// Create genesis runtime configuration for tests.
 ///
@@ -38,9 +37,7 @@ pub fn config(_code: Option<&[u8]>) -> RuntimeGenesisConfig {
 
 /// Create genesis runtime configuration for tests with some extra
 /// endowed accounts.
-pub fn config_endowed(
-	extra_endowed: Vec<AccountId>,
-) -> RuntimeGenesisConfig {
+pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 	let mut endowed = vec![
 		(alice(), 111 * UNITS),
 		(bob(), 100 * UNITS),
@@ -50,9 +47,7 @@ pub fn config_endowed(
 		(ferdie(), 100 * UNITS),
 	];
 
-	endowed.extend(
-		extra_endowed.into_iter().map(|endowed| (endowed, 100*UNITS))
-	);
+	endowed.extend(extra_endowed.into_iter().map(|endowed| (endowed, 100 * UNITS)));
 
 	RuntimeGenesisConfig {
 		// SystemConfig no longer has a code field - code is set via TestExternalities::new_with_code
@@ -62,45 +57,34 @@ pub fn config_endowed(
 			epoch_config: BABE_GENESIS_EPOCH_CONFIG,
 			..Default::default()
 		},
-		balances: BalancesConfig {
-			balances: endowed,
-			..Default::default()
-		},
+		balances: BalancesConfig { balances: endowed, ..Default::default() },
 		staking: StakingConfig {
 			stakers: vec![
 				// Note: StakerStatus::Validator no longer takes cMix ID argument in standard SDK
 				// cMix IDs would need to be set via xx_staking_extension if needed
 				(dave(), alice(), 111 * UNITS, StakerStatus::Validator),
 				(eve(), bob(), 100 * UNITS, StakerStatus::Validator),
-				(ferdie(), charlie(), 100 * UNITS, StakerStatus::Validator)
+				(ferdie(), charlie(), 100 * UNITS, StakerStatus::Validator),
 			],
 			validator_count: 3,
 			minimum_validator_count: 0,
 			slash_reward_fraction: Perbill::from_percent(10),
 			invulnerables: vec![alice(), bob(), charlie()],
-			.. Default::default()
+			..Default::default()
 		},
 		session: SessionConfig {
 			keys: vec![
-				(alice(), dave(), to_session_keys(
-					&Ed25519Keyring::Alice,
-					&Sr25519Keyring::Alice,
-				)),
-				(bob(), eve(), to_session_keys(
-					&Ed25519Keyring::Bob,
-					&Sr25519Keyring::Bob,
-				)),
-				(charlie(), ferdie(), to_session_keys(
-					&Ed25519Keyring::Charlie,
-					&Sr25519Keyring::Charlie,
-				)),
+				(alice(), dave(), to_session_keys(&Ed25519Keyring::Alice, &Sr25519Keyring::Alice)),
+				(bob(), eve(), to_session_keys(&Ed25519Keyring::Bob, &Sr25519Keyring::Bob)),
+				(
+					charlie(),
+					ferdie(),
+					to_session_keys(&Ed25519Keyring::Charlie, &Sr25519Keyring::Charlie),
+				),
 			],
 			..Default::default()
 		},
-		grandpa: GrandpaConfig {
-			authorities: vec![],
-			..Default::default()
-		},
+		grandpa: GrandpaConfig { authorities: vec![], ..Default::default() },
 		im_online: Default::default(),
 		authority_discovery: Default::default(),
 		democracy: Default::default(),
@@ -111,10 +95,7 @@ pub fn config_endowed(
 		treasury: Default::default(),
 		claims: Default::default(),
 		vesting: Default::default(),
-		swap: SwapConfig {
-			threshold: 1,
-			..Default::default()
-		},
+		swap: SwapConfig { threshold: 1, ..Default::default() },
 		xx_cmix: Default::default(),
 		xx_economics: Default::default(),
 		xx_custody: Default::default(),

@@ -23,8 +23,8 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;
+use frame_support::{traits::Get, weights::Weight};
 
 /// Weight functions for pallet_transaction_payment.
 pub struct WeightInfo<T>(PhantomData<T>);

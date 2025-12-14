@@ -24,19 +24,22 @@
 
 use codec::{Encode, Joiner};
 use frame_support::{
-	traits::Currency,
 	dispatch::GetDispatchInfo,
+	traits::Currency,
 	weights::{constants::ExtrinsicBaseWeight, WeightToFee},
 };
-use sp_runtime::{traits::One, generic::ExtrinsicFormat};
-use xxnetwork_runtime::{
-	CheckedExtrinsic, RuntimeCall, Runtime, Balances, TransactionPayment, Multiplier,
-};
-use runtime_common::{TransactionByteFee, constants::{time::SLOT_DURATION, currency::*, fee::WeightToFee as WeightToFeePoly}};
 use node_primitives::Balance;
+use runtime_common::{
+	constants::{currency::*, fee::WeightToFee as WeightToFeePoly, time::SLOT_DURATION},
+	TransactionByteFee,
+};
+use sp_runtime::{generic::ExtrinsicFormat, traits::One};
+use xxnetwork_runtime::{
+	Balances, CheckedExtrinsic, Multiplier, Runtime, RuntimeCall, TransactionPayment,
+};
 
 pub mod common;
-use self::common::{*, sign};
+use self::common::{sign, *};
 
 // TODO: remove ignore and find a way to fix the test (without adding Sudo pallet)
 #[test]
@@ -59,12 +62,10 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 		&mut tt,
 		1,
 		GENESIS_HASH.into(),
-		vec![
-			CheckedExtrinsic {
-				format: ExtrinsicFormat::Bare,
-				function: RuntimeCall::Timestamp(pallet_timestamp::Call::set { now: time1 }),
-			}
-		],
+		vec![CheckedExtrinsic {
+			format: ExtrinsicFormat::Bare,
+			function: RuntimeCall::Timestamp(pallet_timestamp::Call::set { now: time1 }),
+		}],
 		(time1 / SLOT_DURATION).into(),
 	);
 
@@ -82,7 +83,7 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 			CheckedExtrinsic {
 				format: ExtrinsicFormat::Signed(charlie(), signed_extra(1, 0)),
 				function: RuntimeCall::System(frame_system::Call::remark { remark: vec![0; 1] }),
-			}
+			},
 		],
 		(time2 / SLOT_DURATION).into(),
 	);
@@ -122,7 +123,8 @@ fn new_account_info(free_units: u128) -> Vec<u8> {
 		providers: 0,
 		sufficients: 0,
 		data: (free_units * UNITS, 0 * UNITS, 0 * UNITS, 0 * UNITS),
-	}.encode()
+	}
+	.encode()
 }
 
 #[test]
@@ -139,7 +141,7 @@ fn transaction_fee_is_correct() {
 	t.insert(<frame_system::Account<Runtime>>::hashed_key_for(bob()), new_account_info(10));
 	t.insert(
 		<pallet_balances::TotalIssuance<Runtime>>::hashed_key().to_vec(),
-		(110 * UNITS).encode()
+		(110 * UNITS).encode(),
 	);
 	t.insert(<frame_system::BlockHash<Runtime>>::hashed_key_for(0), vec![0u8; 32]);
 

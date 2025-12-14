@@ -6,6 +6,9 @@ edition = "2021"
 homepage = "https://xx.network"
 repository = "https://github.com/xx-labs/xxchain/"
 
+[lints]
+workspace = true
+
 [dependencies]
 # third-party dependencies
 codec = { workspace = true }

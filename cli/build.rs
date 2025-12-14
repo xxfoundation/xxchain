@@ -51,9 +51,12 @@ mod cli {
 			Some(dir) => dir,
 		};
 		let path = Path::new(&outdir)
-			.parent().unwrap()
-			.parent().unwrap()
-			.parent().unwrap()
+			.parent()
+			.unwrap()
+			.parent()
+			.unwrap()
+			.parent()
+			.unwrap()
 			.join("completion-scripts");
 
 		fs::create_dir(&path).ok();

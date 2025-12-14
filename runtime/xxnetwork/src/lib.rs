@@ -22,81 +22,78 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-
 extern crate alloc;
-use alloc::vec::Vec;
-use alloc::vec;
+use alloc::{vec, vec::Vec};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
+		tokens::nonfungibles_v2::Inspect, AsEnsureOriginWithArg, ConstBool, ConstU32, ConstU64,
+		Contains, EitherOf, EitherOfDiverse, EqualPrivilegeOnly, InstanceFilter,
 		KeyOwnerProofSystem,
-		EqualPrivilegeOnly,
 	},
 	weights::{constants::RocksDbWeight, ConstantMultiplier, Weight},
-};
-use sp_runtime::RuntimeDebug;
-use sp_staking::currency_to_vote::U128CurrencyToVote;
-use frame_system::{EnsureRoot, EnsureSigned, EnsureRootWithSuccess, EnsureWithSuccess};
-use frame_support::{
-	traits::{
-		ConstBool, ConstU32, ConstU64,
-		InstanceFilter, Contains,
-		EitherOf, EitherOfDiverse, AsEnsureOriginWithArg,
-		tokens::nonfungibles_v2::Inspect,
-	},
 	PalletId,
 };
-use sp_runtime::Perbill;
-use codec::{Encode, Decode, DecodeWithMemTracking, MaxEncodedLen};
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use pallet_revive::evm::runtime::EthExtra;
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureWithSuccess};
 pub use node_primitives::{AccountId, Signature};
 use node_primitives::{Balance, BlockNumber, Hash, Index, Moment};
+use pallet_revive::evm::runtime::EthExtra;
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_runtime::{Perbill, RuntimeDebug};
+use sp_staking::currency_to_vote::U128CurrencyToVote;
 /// Nonce type alias for compatibility with pallet-revive macros.
 pub type Nonce = Index;
-use sp_api::impl_runtime_apis;
-use sp_runtime::{
-	ApplyExtrinsicResult, impl_opaque_keys, generic,
-};
 use frame_election_provider_support::{onchain, SequentialPhragmen};
 use pallet_election_provider_multi_phase::{GeometricDepositBase, SolutionAccuracyOf};
-use sp_runtime::transaction_validity::{TransactionValidity, TransactionSource};
-use sp_runtime::traits::{self, BlakeTwo256, Block as BlockT, SaturatedConversion, ConvertInto, OpaqueKeys, NumberFor, AccountIdLookup, IdentityLookup, StaticLookup};
-use sp_version::RuntimeVersion;
+use pallet_grandpa::{
+	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
+};
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_session::{
+	disabling::UpToLimitDisablingStrategy, historical as pallet_session_historical,
+};
+use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+pub use pallet_transaction_payment::{FungibleAdapter, Multiplier, TargetedFeeAdjustment};
+use runtime_common::constants::currency::{deposit, UNITS};
+use sp_api::impl_runtime_apis;
+use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+use sp_inherents::{CheckInherentsResult, InherentData};
+use sp_runtime::{
+	generic, impl_opaque_keys,
+	traits::{
+		self, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentityLookup,
+		NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup,
+	},
+	transaction_validity::{TransactionSource, TransactionValidity},
+	ApplyExtrinsicResult,
+};
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
-use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
-use pallet_grandpa::fg_primitives;
-use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
-pub use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment, FungibleAdapter};
-use pallet_session::{historical as pallet_session_historical};
-use pallet_session::disabling::UpToLimitDisablingStrategy;
-use runtime_common::constants::currency::{UNITS, deposit};
-use sp_inherents::{InherentData, CheckInherentsResult};
+use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 #[cfg(any(feature = "std", test))]
-pub use sp_runtime::BuildStorage;
+pub use frame_system::Call as SystemCall;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 #[cfg(any(feature = "std", test))]
-pub use frame_system::Call as SystemCall;
-#[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
+#[cfg(any(feature = "std", test))]
+pub use sp_runtime::BuildStorage;
 
 // Runtime common stuff
-use runtime_common::*;
-use runtime_common::impls::*;
-use runtime_common::constants::{time::*, fee::*};
+use runtime_common::{
+	constants::{fee::*, time::*},
+	impls::*,
+	*,
+};
 use sp_runtime::generic::Era;
 
 use sp_io::hashing::sha2_256;
 
 // Migrations
-use migrations::bridge_adjust::BridgeAdjust;
-use migrations::cmix_id_migration::CmixIdMigration;
+use migrations::{bridge_adjust::BridgeAdjust, cmix_id_migration::CmixIdMigration};
 
 mod weights;
 
@@ -110,9 +107,11 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 /// Wasm binary unwrapped. If built with `SKIP_WASM_BUILD`, the function panics.
 #[cfg(feature = "std")]
 pub fn wasm_binary_unwrap() -> &'static [u8] {
-	WASM_BINARY.expect("Development wasm binary is not available. This means the client is \
+	WASM_BINARY.expect(
+		"Development wasm binary is not available. This means the client is \
 						built with `SKIP_WASM_BUILD` flag and it is only usable for \
-						production chains. Please rebuild with the flag disabled.")
+						production chains. Please rebuild with the flag disabled.",
+	)
 }
 
 /// Runtime version.
@@ -125,7 +124,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 207,  // Bumped for SDK upgrade
+	spec_version: 207, // Bumped for SDK upgrade
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2, // Bumped for transaction format changes
@@ -136,16 +135,13 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 	sp_consensus_babe::BabeEpochConfiguration {
 		c: PRIMARY_PROBABILITY,
-		allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots
+		allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots,
 	};
 
 /// Native version.
 #[cfg(any(feature = "std", test))]
 pub fn native_version() -> NativeVersion {
-	NativeVersion {
-		runtime_version: VERSION,
-		can_author_with: Default::default(),
-	}
+	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
 
 parameter_types! {
@@ -252,33 +248,44 @@ pub enum ProxyType {
 	Staking,
 	Voting,
 }
-impl Default for ProxyType { fn default() -> Self { Self::Any } }
+impl Default for ProxyType {
+	fn default() -> Self {
+		Self::Any
+	}
+}
 impl InstanceFilter<RuntimeCall> for ProxyType {
 	fn filter(&self, c: &RuntimeCall) -> bool {
 		match self {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => !matches!(
 				c,
-				RuntimeCall::Assets(..) | RuntimeCall::Uniques(..) | RuntimeCall::Nfts(..) |
-				RuntimeCall::Balances(..) |
-				RuntimeCall::Vesting(pallet_vesting::Call::vested_transfer { .. })
+				RuntimeCall::Assets(..)
+					| RuntimeCall::Uniques(..)
+					| RuntimeCall::Nfts(..)
+					| RuntimeCall::Balances(..)
+					| RuntimeCall::Vesting(pallet_vesting::Call::vested_transfer { .. })
 			),
 			ProxyType::Governance => matches!(
 				c,
-				RuntimeCall::Democracy(..) |
-				RuntimeCall::Council(..) |
-				RuntimeCall::TechnicalCommittee(..) |
-				RuntimeCall::Elections(..) |
-				RuntimeCall::Treasury(..) |
-				RuntimeCall::Preimage(..) |
-				RuntimeCall::Bounties(_) |
-				RuntimeCall::ChildBounties(_)
+				RuntimeCall::Democracy(..)
+					| RuntimeCall::Council(..)
+					| RuntimeCall::TechnicalCommittee(..)
+					| RuntimeCall::Elections(..)
+					| RuntimeCall::Treasury(..)
+					| RuntimeCall::Preimage(..)
+					| RuntimeCall::Bounties(_)
+					| RuntimeCall::ChildBounties(_)
 			),
 			ProxyType::Staking => matches!(c, RuntimeCall::Staking(..)),
 			ProxyType::Voting => matches!(
 				c,
-				RuntimeCall::Democracy(pallet_democracy::Call::vote { .. } | pallet_democracy::Call::remove_vote { .. }) |
-				RuntimeCall::Elections(pallet_elections_phragmen::Call::vote { .. } | pallet_elections_phragmen::Call::remove_voter { .. })
+				RuntimeCall::Democracy(
+					pallet_democracy::Call::vote { .. }
+						| pallet_democracy::Call::remove_vote { .. }
+				) | RuntimeCall::Elections(
+					pallet_elections_phragmen::Call::vote { .. }
+						| pallet_elections_phragmen::Call::remove_voter { .. }
+				)
 			),
 		}
 	}
@@ -332,7 +339,7 @@ impl pallet_preimage::Config for Runtime {
 }
 
 // Epoch duration is 8 hours in prod, 4 minutes in dev (fast-runtime)
-const EPOCH_DURATION_IN_BLOCKS: BlockNumber = prod_or_fast!(8*HOURS, 4*MINUTES);
+const EPOCH_DURATION_IN_BLOCKS: BlockNumber = prod_or_fast!(8 * HOURS, 4 * MINUTES);
 
 parameter_types! {
 	// NOTE: Currently it is not possible to change the epoch duration after the chain has started.
@@ -380,8 +387,13 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
-	type FeeMultiplierUpdate =
-		TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier, MaximumMultiplier>;
+	type FeeMultiplierUpdate = TargetedFeeAdjustment<
+		Self,
+		TargetBlockFullness,
+		AdjustmentVariable,
+		MinimumMultiplier,
+		MaximumMultiplier,
+	>;
 	type WeightInfo = weights::pallet_transaction_payment::WeightInfo<Runtime>;
 }
 
@@ -484,8 +496,8 @@ impl xx_cmix::Config for Runtime {
 	type CmixVariablesOrigin = EnsureTwoThirdsCouncil;
 	// Admin is 2/3 technical committee
 	type AdminOrigin = EnsureTwoThirdsTechnical;
-    // Weight information for extrinsics in this pallet.
-    type WeightInfo = weights::xx_cmix::WeightInfo<Runtime>;
+	// Weight information for extrinsics in this pallet.
+	type WeightInfo = weights::xx_cmix::WeightInfo<Runtime>;
 }
 
 impl xx_public::Config for Runtime {
@@ -526,7 +538,7 @@ impl xx_team_custody::Config for Runtime {
 parameter_types! {
 	pub ElectionBoundsOnChain: frame_election_provider_support::bounds::ElectionBounds =
 		frame_election_provider_support::bounds::ElectionBoundsBuilder::default()
-			.voters_count((MaxOnChainElectingVoters::get() as u32).into())
+			.voters_count(MaxOnChainElectingVoters::get().into())
 			.targets_count((MaxOnChainElectableTargets::get() as u32).into())
 			.build();
 }
@@ -558,16 +570,10 @@ parameter_types! {
 }
 
 /// Type alias for staking negative imbalance (slashes, remainders) - NegativeImbalanceOf = Credit
-pub type StakingNegativeImbalance = frame_support::traits::fungible::Credit<
-	AccountId,
-	Balances,
->;
+pub type StakingNegativeImbalance = frame_support::traits::fungible::Credit<AccountId, Balances>;
 
 /// Type alias for staking positive imbalance (rewards) - PositiveImbalanceOf = Debt
-pub type StakingPositiveImbalance = frame_support::traits::fungible::Debt<
-	AccountId,
-	Balances,
->;
+pub type StakingPositiveImbalance = frame_support::traits::fungible::Debt<AccountId, Balances>;
 
 /// Staking reward handler - handles validator/nominator rewards
 /// In staking, rewards are Debt (tokens owed to validators that were already minted)
@@ -576,7 +582,10 @@ pub struct StakingRewardHandler;
 
 impl frame_support::traits::OnUnbalanced<StakingPositiveImbalance> for StakingRewardHandler {
 	fn on_nonzero_unbalanced(reward: StakingPositiveImbalance) {
-		use frame_support::traits::{fungible::{Inspect, Balanced}, tokens::imbalance::Imbalance};
+		use frame_support::traits::{
+			fungible::{Balanced, Inspect},
+			tokens::imbalance::Imbalance,
+		};
 		use sp_runtime::traits::Zero;
 
 		// Get current rewards pool balance
@@ -595,8 +604,12 @@ impl frame_support::traits::OnUnbalanced<StakingPositiveImbalance> for StakingRe
 		// Settle the pool portion - this withdraws from rewards account to offset the debt
 		if !withdraw_amount.is_zero() {
 			use frame_support::traits::tokens::Preservation;
-			<Balances as Balanced<_>>::settle(&rewards_account, pool_debt, Preservation::Expendable)
-				.expect("pool_balance was checked; qed");
+			let _ = <Balances as Balanced<_>>::settle(
+				&rewards_account,
+				pool_debt,
+				Preservation::Expendable,
+			)
+			.expect("pool_balance was checked; qed");
 			XXEconomics::deposit_event(xx_economics::Event::RewardFromPool(withdraw_amount));
 		} else {
 			drop(pool_debt);
@@ -665,7 +678,7 @@ impl pallet_staking::Config for Runtime {
 	/// A super-majority of the council can cancel the slash.
 	type AdminOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
-		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 4>
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 4>,
 	>;
 	type SessionInterface = Self;
 	type EraPayout = XXEconomics; // era payout is calculated according to inflation parameters
@@ -721,7 +734,7 @@ impl pallet_election_provider_multi_phase::MinerConfig for Runtime {
 parameter_types! {
 	pub ElectionBoundsMultiPhase: frame_election_provider_support::bounds::ElectionBounds =
 		frame_election_provider_support::bounds::ElectionBoundsBuilder::default()
-			.voters_count((MaxElectingVoters::get() as u32).into())
+			.voters_count(MaxElectingVoters::get().into())
 			.targets_count((MaxElectableTargets::get() as u32).into())
 			.build();
 }
@@ -739,7 +752,8 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type SignedMaxSubmissions = SignedMaxSubmissions;
 	type SignedMaxWeight = MinerMaxWeight;
 	type SignedRewardBase = SignedRewardBase;
-	type SignedDepositBase = GeometricDepositBase<Balance, SignedFixedDeposit, SignedDepositIncreaseFactor>;
+	type SignedDepositBase =
+		GeometricDepositBase<Balance, SignedFixedDeposit, SignedDepositIncreaseFactor>;
 	type SignedDepositByte = SignedDepositByte;
 	type SignedMaxRefunds = SignedMaxRefunds;
 	type SignedDepositWeight = ();
@@ -909,7 +923,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 
 type EnsureRootOrHalfCouncil = EitherOfDiverse<
 	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>
+	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
 >;
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
@@ -1026,7 +1040,8 @@ impl frame_support::traits::tokens::Pay for TreasuryBenchmarkPaymaster {
 		// Fund the treasury account
 		let _ = <Balances as Mutate<_>>::mint_into(&TreasuryAccount::get(), amount);
 		// Also fund the beneficiary with existential deposit so they can receive small amounts
-		let ed = <Balances as frame_support::traits::fungible::Inspect<AccountId>>::minimum_balance();
+		let ed =
+			<Balances as frame_support::traits::fungible::Inspect<AccountId>>::minimum_balance();
 		let _ = <Balances as Mutate<_>>::mint_into(who, ed);
 	}
 
@@ -1098,10 +1113,8 @@ where
 	) -> Option<UncheckedExtrinsic> {
 		let tip = 0;
 		// take the biggest period possible.
-		let period = BlockHashCount::get()
-			.checked_next_power_of_two()
-			.map(|c| c / 2)
-			.unwrap_or(2) as u64;
+		let period =
+			BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
 		let current_block = System::block_number()
 			.saturated_into::<u64>()
 			// The `System::block_number` is initialized with `n+1`,
@@ -1124,14 +1137,11 @@ where
 				log::warn!("Unable to create signed payload: {:?}", e);
 			})
 			.ok()?;
-		let signature = raw_payload
-			.using_encoded(|payload| {
-				C::sign(payload, public)
-			})?;
+		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
 		let address = <Runtime as frame_system::Config>::Lookup::unlookup(account);
 		let (call, tx_ext, _) = raw_payload.deconstruct();
 		let transaction =
-			generic::UncheckedExtrinsic::new_signed(call, address, signature.into(), tx_ext).into();
+			generic::UncheckedExtrinsic::new_signed(call, address, signature, tx_ext).into();
 		Some(transaction)
 	}
 }
@@ -1257,9 +1267,9 @@ impl claims::Config for Runtime {
 
 parameter_types! {
 	pub const ChainId: u8 = 0;
-	pub const ProposalLifetime: BlockNumber = 1 * HOURS;
+	pub const ProposalLifetime: BlockNumber = HOURS;
 	pub const BridgePalletId: PalletId = PalletId(*b"cb/bridg");
-    pub TokenID: chainbridge::ResourceId = chainbridge::derive_resource_id(0, &sha2_256(b"xx coin"));
+	pub TokenID: chainbridge::ResourceId = chainbridge::derive_resource_id(0, &sha2_256(b"xx coin"));
 }
 
 // Chain Bridge Pallet
@@ -1553,7 +1563,8 @@ impl EthExtra for EthExtraImpl {
 
 /// Unchecked extrinsic type as expected by this runtime.
 /// Uses pallet_revive's UncheckedExtrinsic for Ethereum transaction support.
-pub type UncheckedExtrinsic = pallet_revive::evm::runtime::UncheckedExtrinsic<Address, Signature, EthExtraImpl>;
+pub type UncheckedExtrinsic =
+	pallet_revive::evm::runtime::UncheckedExtrinsic<Address, Signature, EthExtraImpl>;
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
 /// Extrinsic type that has already been checked.
@@ -1584,14 +1595,12 @@ pub type Migrations = (
 	// - Stores cmix_id in xx-staking-extension::CmixIds
 	// - Rewrites ledgers in standard SDK v12 format (without cmix_id)
 	CmixIdMigration<Runtime>,
-
 	// Step 2: SDK staking migrations v12 → v16
 	// These use VersionedMigration wrappers that check storage versions
 	pallet_staking::migrations::v13::MigrateToV13<Runtime>,
 	pallet_staking::migrations::v14::MigrateToV14<Runtime>,
 	pallet_staking::migrations::v15::MigrateV14ToV15<Runtime>,
 	pallet_staking::migrations::v16::MigrateV15ToV16<Runtime>,
-
 	// Step 3: Custom bridge balance adjustment
 	BridgeAdjust<Runtime>,
 );
@@ -1994,9 +2003,11 @@ mod tests {
 
 	#[test]
 	fn validate_transaction_submitter_bounds() {
-		fn is_submit_signed_transaction<T>() where
+		fn is_submit_signed_transaction<T>()
+		where
 			T: CreateSignedTransaction<RuntimeCall>,
-		{}
+		{
+		}
 
 		is_submit_signed_transaction::<Runtime>();
 	}

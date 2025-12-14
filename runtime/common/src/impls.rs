@@ -18,16 +18,14 @@
 //! Some configurable implementations as associated type for the substrate runtime.
 
 use frame_support::traits::{
-	OnUnbalanced,
 	fungible::{Balanced, Credit},
 	tokens::imbalance::Imbalance,
+	OnUnbalanced,
 };
 
 /// Type alias for fungible credit used in fee handling
-pub type FungibleCredit<R> = Credit<
-	<R as frame_system::Config>::AccountId,
-	pallet_balances::Pallet<R>,
->;
+pub type FungibleCredit<R> =
+	Credit<<R as frame_system::Config>::AccountId, pallet_balances::Pallet<R>>;
 
 /// Split fees between treasury and block author using fungible traits
 ///
@@ -53,7 +51,10 @@ where
 
 			// Resolve treasury portion to treasury account
 			let treasury_account = pallet_treasury::Pallet::<R>::account_id();
-			let _ = <pallet_balances::Pallet<R> as Balanced<_>>::resolve(&treasury_account, treasury_part);
+			let _ = <pallet_balances::Pallet<R> as Balanced<_>>::resolve(
+				&treasury_account,
+				treasury_part,
+			);
 
 			// Resolve author portion to block author
 			if let Some(author) = <pallet_authorship::Pallet<R>>::author() {

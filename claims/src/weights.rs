@@ -16,52 +16,62 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;
+use frame_support::{traits::Get, weights::Weight};
 
 pub trait WeightInfo {
-    fn claim() -> Weight;
-    fn mint_claim() -> Weight;
-    fn claim_attest() -> Weight;
-    fn attest() -> Weight;
-    fn move_claim() -> Weight;
+	fn claim() -> Weight;
+	fn mint_claim() -> Weight;
+	fn claim_attest() -> Weight;
+	fn attest() -> Weight;
+	fn move_claim() -> Weight;
 }
 
 pub struct TestWeightInfo;
 impl WeightInfo for TestWeightInfo {
-    fn claim() -> Weight { Weight::zero() }
-    fn mint_claim() -> Weight { Weight::zero() }
-    fn claim_attest() -> Weight { Weight::zero() }
-    fn attest() -> Weight { Weight::zero() }
-    fn move_claim() -> Weight { Weight::zero() }
+	fn claim() -> Weight {
+		Weight::zero()
+	}
+	fn mint_claim() -> Weight {
+		Weight::zero()
+	}
+	fn claim_attest() -> Weight {
+		Weight::zero()
+	}
+	fn attest() -> Weight {
+		Weight::zero()
+	}
+	fn move_claim() -> Weight {
+		Weight::zero()
+	}
 }
 
 /// Weight functions for claims.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-    fn claim() -> Weight {
-       Weight::from_parts(466_905_000, 1000)
-            .saturating_add(T::DbWeight::get().reads(7 as u64))
-            .saturating_add(T::DbWeight::get().writes(7 as u64))
-    }
-    fn mint_claim() -> Weight {
-       Weight::from_parts(19_003_000, 1000)
-            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(4 as u64))
-    }
-    fn claim_attest() -> Weight {
-       Weight::from_parts(471_915_000, 1000)
-            .saturating_add(T::DbWeight::get().reads(7 as u64))
-            .saturating_add(T::DbWeight::get().writes(7 as u64))
-    }
-    fn attest() -> Weight {
-       Weight::from_parts(156_649_000, 1000)
-            .saturating_add(T::DbWeight::get().reads(8 as u64))
-            .saturating_add(T::DbWeight::get().writes(8 as u64))
-    }
-    fn move_claim() -> Weight {
-       Weight::from_parts(39_612_000, 1000)
-            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(7 as u64))
-    }
+	fn claim() -> Weight {
+		Weight::from_parts(466_905_000, 1000)
+			.saturating_add(T::DbWeight::get().reads(7_u64))
+			.saturating_add(T::DbWeight::get().writes(7_u64))
+	}
+	fn mint_claim() -> Weight {
+		Weight::from_parts(19_003_000, 1000)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(4_u64))
+	}
+	fn claim_attest() -> Weight {
+		Weight::from_parts(471_915_000, 1000)
+			.saturating_add(T::DbWeight::get().reads(7_u64))
+			.saturating_add(T::DbWeight::get().writes(7_u64))
+	}
+	fn attest() -> Weight {
+		Weight::from_parts(156_649_000, 1000)
+			.saturating_add(T::DbWeight::get().reads(8_u64))
+			.saturating_add(T::DbWeight::get().writes(8_u64))
+	}
+	fn move_claim() -> Weight {
+		Weight::from_parts(39_612_000, 1000)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(7_u64))
+	}
 }

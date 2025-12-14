@@ -1,0 +1,10 @@
+# Align with Polkadot SDK conventions
+edition = "2021"
+hard_tabs = true
+max_width = 100
+use_small_heuristics = "Max"
+imports_granularity = "Crate"
+reorder_imports = true
+trailing_comma = "Vertical"
+trailing_semicolon = false
+use_field_init_shorthand = true

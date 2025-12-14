@@ -27,24 +27,30 @@ pub mod impls;
 
 #[allow(unused_imports)]
 use alloc::vec; // Required by generate_solution_type! macro
+use codec::Decode;
+use constants::{
+	currency::{deposit, CENTS, UNITS},
+	time::DAYS,
+};
+use frame_election_provider_support::BalancingConfig;
 use frame_support::{
-	parameter_types,
 	dispatch::DispatchClass,
+	parameter_types,
+	traits::{LockIdentifier, WithdrawReasons},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_REF_TIME_PER_SECOND},
 		Weight,
 	},
-	traits::{LockIdentifier, WithdrawReasons},
 	PalletId,
 };
 use frame_system::limits;
 use node_primitives::{Balance, BlockNumber};
-use sp_runtime::{FixedPointNumber, Percent, Permill, Perbill, Perquintill, transaction_validity::TransactionPriority};
 use pallet_transaction_payment::Multiplier;
-use frame_election_provider_support::BalancingConfig;
+use sp_runtime::{
+	transaction_validity::TransactionPriority, FixedPointNumber, Perbill, Percent, Permill,
+	Perquintill,
+};
 use static_assertions::const_assert;
-use constants::{currency::{deposit, CENTS, UNITS}, time::DAYS};
-use codec::Decode;
 
 /// We assume that ~1% of the block weight is consumed by `on_initialize` handlers.
 /// This is used to limit the maximal weight of a single extrinsic.
@@ -53,7 +59,8 @@ const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
 /// by Operational extrinsics.
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 /// We allow for 2 seconds of compute with a 6 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
+const MAXIMUM_BLOCK_WEIGHT: Weight =
+	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
 
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
 
@@ -63,7 +70,7 @@ parameter_types! {
 
 	////////////////////////////////////////////
 	/// Transaction fees constants
-	/// 
+	///
 	pub const TransactionByteFee: Balance = 10 * crate::constants::currency::MILLICENTS;
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
@@ -83,7 +90,7 @@ parameter_types! {
 
 	////////////////////////////////////////////
 	/// Block weigth and scheduler constants
-	/// 
+	///
 	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: limits::BlockLength = limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub BlockWeights: limits::BlockWeights = limits::BlockWeights::builder()
@@ -127,7 +134,7 @@ parameter_types! {
 
 	////////////////////////////////////////////
 	/// Balances constants
-	pub const ExistentialDeposit: Balance = 1 * UNITS;
+	pub const ExistentialDeposit: Balance = UNITS;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxReserves: u32 = 50;
@@ -140,7 +147,7 @@ parameter_types! {
 	pub const SlashDeferDuration: sp_staking::EraIndex = 27;
 	pub const MaxNominatorRewardedPerValidator: u32 = 256;
 	pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(17);
-	
+
 	////////////////////////////////////////////
 	/// Election provider constants
 	// signed config
@@ -150,7 +157,7 @@ parameter_types! {
 	pub const SignedDepositByte: Balance = deposit(0, 10) / 1024;
 	pub SignedDepositIncreaseFactor: Percent = Percent::from_percent(10);
 	// Each good submission will get 1 UNIT as reward
-	pub SignedRewardBase: Balance = 1 * UNITS;
+	pub SignedRewardBase: Balance = UNITS;
 	pub BetterUnsignedThreshold: Perbill = Perbill::from_rational(5u32, 10_000);
 
 	// miner configs
@@ -215,11 +222,11 @@ parameter_types! {
 	pub const Burn: Permill = Permill::from_percent(1);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"xx/trsry");
 	pub const MaxApprovals: u32 = 100;
-	pub const TipCountdown: BlockNumber = 1 * DAYS;
+	pub const TipCountdown: BlockNumber = DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
-	pub const TipReportDepositBase: Balance = 1 * UNITS;
-	pub const DataDepositPerByte: Balance = 1 * CENTS;
-	pub const BountyDepositBase: Balance = 1 * UNITS;
+	pub const TipReportDepositBase: Balance = UNITS;
+	pub const DataDepositPerByte: Balance = CENTS;
+	pub const BountyDepositBase: Balance = UNITS;
 	pub const BountyDepositPayoutDelay: BlockNumber = 8 * DAYS;
 	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
 	pub const MaximumReasonLength: u32 = 16384;
@@ -227,7 +234,7 @@ parameter_types! {
 	pub const CuratorDepositMin: Balance = 10 * UNITS;
 	pub const CuratorDepositMax: Balance = 200 * UNITS;
 	pub const BountyValueMinimum: Balance = 10 * UNITS;
-	pub const ChildBountyValueMinimum: Balance = 1 * UNITS;
+	pub const ChildBountyValueMinimum: Balance = UNITS;
 	pub const MaxActiveChildBountyCount: u32 = 100;
 
 	////////////////////////////////////////////
@@ -249,7 +256,7 @@ parameter_types! {
 
 	///////////////////////////////////////////
 	/// Vesting constants
-	pub const MinVestedTransfer: Balance = 1 * UNITS;
+	pub const MinVestedTransfer: Balance = UNITS;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
 
@@ -271,15 +278,15 @@ parameter_types! {
 	/// Assets constants
 	pub const AssetDeposit: Balance = 100 * UNITS;
 	pub const AssetAccountDeposit: u128 = UNITS;
-	pub const ApprovalDeposit: Balance = 1 * UNITS;
+	pub const ApprovalDeposit: Balance = UNITS;
 	pub const StringLimit: u32 = 50;
 	pub const MetadataDepositBase: Balance = 10 * UNITS;
-	pub const MetadataDepositPerByte: Balance = 1 * UNITS;
+	pub const MetadataDepositPerByte: Balance = UNITS;
 
 	///////////////////////////////////////////
 	/// Uniques + NFTs constants
 	pub const CollectionDeposit: Balance = 100 * UNITS;
-	pub const ItemDeposit: Balance = 1 * UNITS;
+	pub const ItemDeposit: Balance = UNITS;
 	pub const KeyLimit: u32 = 32;
 	pub const ValueLimit: u32 = 256;
 	pub const ApprovalsLimit: u32 = 20;
@@ -319,8 +326,7 @@ pub const MINER_MAX_ITERATIONS: u32 = 10;
 
 /// A source of random balance for NposSolver, which is meant to be run by the OCW election miner.
 pub struct OffchainRandomBalancing;
-impl frame_support::pallet_prelude::Get<Option<BalancingConfig>>
-for OffchainRandomBalancing {
+impl frame_support::pallet_prelude::Get<Option<BalancingConfig>> for OffchainRandomBalancing {
 	fn get() -> Option<BalancingConfig> {
 		use sp_runtime::traits::TrailingZeroInput;
 		let iterations = match MINER_MAX_ITERATIONS {
@@ -328,10 +334,10 @@ for OffchainRandomBalancing {
 			max @ _ => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed") %
-					max.saturating_add(1);
+					.expect("input is padded with zeroes; qed")
+					% max.saturating_add(1);
 				random as usize
-			},
+			}
 		};
 
 		let config = BalancingConfig { iterations, tolerance: 0 };
