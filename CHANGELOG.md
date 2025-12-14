@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 | Runtime spec_version | Tags (this repo)                | Summary |
 | -------------------- | ------------------------------- | ------- |
-| 207                  | (unreleased)                    | Polkadot SDK `polkadot-stable2509-2` migration; see "[Unreleased] - Polkadot SDK Upgrade". |
+| 207                  | (unreleased)                    | Polkadot SDK `polkadot-stable2509-2` migration + Smart Contracts + Bridge Hub prep; see "[Unreleased] - Polkadot SDK Upgrade". |
 | 206                  | v0.2.5-1, v0.2.5-2, v0.2.6      | Last legacy runtime on the `xx-labs/substrate` fork; baseline described in "[206] - Legacy Fork Baseline (xx-network-v0.2.6)". |
 | 205                  | v0.2.5                          | Legacy fork runtime prior to 206; same cMix/custody staking architecture as 206 (see 206 notes and `XXCHANGES.md`). |
 | 204                  | v0.2.4                          | Legacy fork runtime; incremental update within the 200-series on the xx-labs fork. |
@@ -116,6 +116,41 @@ Revive::call(origin, dest, value, gas_limit, storage_deposit_limit, input_data)
 // Upload contract code
 Revive::upload_code(origin, code, storage_deposit_limit)
 ```
+
+#### Bridge Hub Integration Preparation (Phase 1)
+
+Added dependencies and documentation for Polkadot Bridge Hub integration, enabling future trustless cross-chain communication with the Polkadot ecosystem via native XCM.
+
+**Added Dependencies:**
+
+Bridge pallets (already compiling):
+- `pallet-bridge-grandpa` - Bridge Hub GRANDPA light client
+- `pallet-bridge-messages` - Cross-chain message passing
+- `bp-runtime`, `bp-header-chain`, `bp-messages` - Bridge primitives
+
+XCM stack (added in this release):
+- `pallet-xcm` - Core XCM pallet
+- `pallet-message-queue` - Message queue processing
+- `staging-xcm`, `staging-xcm-builder`, `staging-xcm-executor` - XCM v4 types and execution
+- `bp-polkadot-core`, `pallet-xcm-bridge-hub`, `bp-xcm-bridge-hub` - Bridge Hub XCM integration
+
+**Pallet Indices Reserved:**
+- 45: `MessageQueue`
+- 46: `PolkadotXcm`
+- 47: `BridgePolkadotGrandpa`
+- 48: `BridgePolkadotMessages`
+- 49: Reserved for `XcmBridgeHub`
+
+**Strategy:**
+- Bridge pallets will be deployed **disabled** (blocked by `BaseFilter`)
+- Enabled via governance after Polkadot OpenGov approval
+- Follows Kusama↔Polkadot bridge precedent ([Referendum #545](https://polkadot.subsquare.io/referenda/545))
+
+**Documentation Added:**
+- `BRIDGEHUB.md` - Comprehensive integration guide with OpenGov proposal template
+- `POLKADOT_INTEGRATION.md` - Updated with Bridge Hub as Phase 1, Hyperbridge as Phase 2
+
+**Note:** Runtime configuration (xcm_config.rs, pallet Config traits, construct_runtime!) is pending and will be completed in a follow-up commit. The XCM dependencies are included to enable parallel development and testing.
 
 ### Pallet Test Mock Updates
 
