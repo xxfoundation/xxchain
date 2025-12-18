@@ -155,6 +155,19 @@ impl<T: pallet_staking::Config> OnRuntimeUpgrade for StakingV13ToV14<T> {
 // ============================================================================
 
 /// Migration to bump Offences pallet from v0 to v1
+///
+/// This migration clears all old offence-related storage because the historical
+/// offence records were encoded with an old `Exposure` type (from SDK v1.7.2)
+/// that is incompatible with the new runtime (SDK v1.16.2).
+///
+/// Cleared storage:
+/// - `Reports`: Historical offence records (~40K entries with undecodable Exposure data)
+/// - `ConcurrentReportsIndex`: Index of concurrent reports
+/// - `ReportsByKindIndex`: Index by offence kind (standard v1 migration)
+///
+/// This is safe because:
+/// - Historical offence reports beyond the bonding period have no impact on slashing
+/// - New offences will be recorded correctly after the upgrade
 pub struct OffencesV0ToV1<T>(core::marker::PhantomData<T>);
 
 impl<T: pallet_offences::Config> OnRuntimeUpgrade for OffencesV0ToV1<T> {
@@ -164,26 +177,86 @@ impl<T: pallet_offences::Config> OnRuntimeUpgrade for OffencesV0ToV1<T> {
 		if on_chain == 0 {
 			log::info!(
 				target: "runtime::migrations::pallet_versions",
-				"Offences: Upgrading from v0 to v1"
+				"Offences: Upgrading from v0 to v1, clearing old Reports storage"
 			);
 
-			// Clear ReportsByKindIndex (the v1 migration clears this)
-			frame_support::storage::unhashed::kill(&frame_support::storage::storage_prefix(
-				b"Offences",
-				b"ReportsByKindIndex",
-			));
+			// Clear Reports (old undecodable offence records with incompatible Exposure type)
+			let reports_result = frame_support::storage::unhashed::clear_prefix(
+				&frame_support::storage::storage_prefix(b"Offences", b"Reports"),
+				Some(u32::MAX),
+				None,
+			);
+			log::info!(
+				target: "runtime::migrations::pallet_versions",
+				"Offences: Cleared Reports storage, deleted {:?} keys",
+				reports_result.unique
+			);
+
+			// Clear ConcurrentReportsIndex (related index, references cleared Reports)
+			let concurrent_result = frame_support::storage::unhashed::clear_prefix(
+				&frame_support::storage::storage_prefix(b"Offences", b"ConcurrentReportsIndex"),
+				Some(u32::MAX),
+				None,
+			);
+			log::info!(
+				target: "runtime::migrations::pallet_versions",
+				"Offences: Cleared ConcurrentReportsIndex storage, deleted {:?} keys",
+				concurrent_result.unique
+			);
+
+			// Clear ReportsByKindIndex (standard v1 migration)
+			let kind_result = frame_support::storage::unhashed::clear_prefix(
+				&frame_support::storage::storage_prefix(b"Offences", b"ReportsByKindIndex"),
+				Some(u32::MAX),
+				None,
+			);
+			log::info!(
+				target: "runtime::migrations::pallet_versions",
+				"Offences: Cleared ReportsByKindIndex storage, deleted {:?} keys",
+				kind_result.unique
+			);
 
 			StorageVersion::new(1).put::<pallet_offences::Pallet<T>>();
 
-			T::DbWeight::get().reads_writes(1, 2)
+			log::info!(
+				target: "runtime::migrations::pallet_versions",
+				"Offences: Successfully upgraded to v1"
+			);
+
+			// Weight: version read + cleared items + version write
+			// Approximate ~40K reports + indexes
+			let total_cleared =
+				reports_result.unique + concurrent_result.unique + kind_result.unique;
+			T::DbWeight::get().reads_writes(1, total_cleared as u64 + 1)
 		} else {
+			log::info!(
+				target: "runtime::migrations::pallet_versions",
+				"Offences: Skipping v0→v1, on_chain version is {:?}",
+				on_chain
+			);
 			T::DbWeight::get().reads(1)
 		}
 	}
 
 	#[cfg(feature = "try-runtime")]
+	fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::TryRuntimeError> {
+		let on_chain = pallet_offences::Pallet::<T>::on_chain_storage_version();
+		log::info!(
+			target: "runtime::migrations::pallet_versions",
+			"Offences v0→v1 pre_upgrade: on_chain = {:?}",
+			on_chain
+		);
+		Ok(Vec::new())
+	}
+
+	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(_state: Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
 		let on_chain = pallet_offences::Pallet::<T>::on_chain_storage_version();
+		log::info!(
+			target: "runtime::migrations::pallet_versions",
+			"Offences v0→v1 post_upgrade: on_chain = {:?}",
+			on_chain
+		);
 		frame_support::ensure!(on_chain >= 1, "Offences version should be at least 1");
 		Ok(())
 	}
