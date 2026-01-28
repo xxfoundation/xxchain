@@ -304,6 +304,65 @@ where
 			exposures_rewritten, exposure_failed_decode_count
 		);
 
+		// ========================================
+		// Part 3: Migrate ErasStakersClipped (remove custody field from Exposure)
+		// ========================================
+		let mut clipped_rewritten = 0u32;
+		let mut clipped_failed_decode = 0u32;
+
+		log::info!(
+			target: "runtime::migrations::cmix_id",
+			"Starting ErasStakersClipped migration: removing custody field from Exposure"
+		);
+
+		// Construct the storage prefix for Staking::ErasStakersClipped
+		// Storage key format: Twox128("Staking") ++ Twox128("ErasStakersClipped") ++ keys
+		let clipped_prefix = storage_prefix(b"Staking", b"ErasStakersClipped");
+		let mut current_key = clipped_prefix.to_vec();
+
+		while let Some(next_key) = sp_io::storage::next_key(&current_key) {
+			if !next_key.starts_with(&clipped_prefix) {
+				break;
+			}
+
+			reads += 1;
+
+			if let Some(raw_value) = sp_io::storage::get(&next_key) {
+				// Try to decode the old Exposure format with custody
+				match OldExposure::<T::AccountId, pallet_staking::BalanceOf<T>>::decode(
+					&mut &raw_value[..],
+				) {
+					Ok(old_exposure) => {
+						// Rewrite Exposure in standard SDK format (without custody)
+						let new_exposure =
+							NewExposure::<T::AccountId, pallet_staking::BalanceOf<T>> {
+								total: old_exposure.total,
+								own: old_exposure.own,
+								others: old_exposure.others,
+							};
+
+						sp_io::storage::set(&next_key, &new_exposure.encode());
+						writes += 1;
+						clipped_rewritten += 1;
+					}
+					Err(_) => {
+						// This could happen if:
+						// 1. The entry is already in new format
+						// 2. The struct doesn't match the actual encoding
+						clipped_failed_decode += 1;
+					}
+				}
+			}
+
+			current_key = next_key;
+		}
+
+		log::info!(
+			target: "runtime::migrations::cmix_id",
+			"ErasStakersClipped migration: {} exposures rewritten, {} failed decodes",
+			clipped_rewritten, clipped_failed_decode
+		);
+
 		log::info!(
 			target: "runtime::migrations::cmix_id",
 			"v12xx → v12 migration complete: total {} reads, {} writes",
@@ -424,14 +483,47 @@ where
 			total_exposures, exposures_in_old_format
 		);
 
+		// Count ErasStakersClipped entries in old format (with custody)
+		let clipped_prefix = storage_prefix(b"Staking", b"ErasStakersClipped");
+		let mut total_clipped = 0u32;
+		let mut clipped_in_old_format = 0u32;
+
+		let mut current_key = clipped_prefix.to_vec();
+		while let Some(next_key) = sp_io::storage::next_key(&current_key) {
+			if !next_key.starts_with(&clipped_prefix) {
+				break;
+			}
+
+			total_clipped += 1;
+			if let Some(raw_value) = sp_io::storage::get(&next_key) {
+				// Try decoding as OldExposure (with custody)
+				if OldExposure::<T::AccountId, pallet_staking::BalanceOf<T>>::decode(
+					&mut &raw_value[..],
+				)
+				.is_ok()
+				{
+					clipped_in_old_format += 1;
+				}
+			}
+
+			current_key = next_key;
+		}
+
+		log::info!(
+			target: "runtime::migrations::cmix_id",
+			"Pre-upgrade: {} total ErasStakersClipped entries, {} in old format (with custody)",
+			total_clipped, clipped_in_old_format
+		);
+
 		// Encode state for post_upgrade verification
-		// (ledgers_with_cmix_id, existing_cmix_ids, total_ledgers, ledgers_in_old_format, exposures_in_old_format)
+		// (ledgers_with_cmix_id, existing_cmix_ids, total_ledgers, ledgers_in_old_format, exposures_in_old_format, clipped_in_old_format)
 		Ok((
 			ledgers_with_cmix_id,
 			existing_cmix_ids,
 			total_ledgers,
 			ledgers_in_old_format,
 			exposures_in_old_format,
+			clipped_in_old_format,
 		)
 			.encode())
 	}
@@ -446,7 +538,8 @@ where
 			_total_ledgers_before,
 			ledgers_in_old_format,
 			exposures_in_old_format,
-		): (u32, u32, u32, u32, u32) =
+			clipped_in_old_format,
+		): (u32, u32, u32, u32, u32, u32) =
 			Decode::decode(&mut &state[..]).expect("pre_upgrade provides a valid state; qed");
 
 		// Check 1: Verify cmix_ids were extracted
@@ -541,6 +634,44 @@ where
 		ensure!(
 			exposures_still_old == 0 || exposures_in_new_format >= exposures_in_old_format,
 			"Some ErasStakers entries were not rewritten to new format"
+		);
+
+		// Check 4: Verify ErasStakersClipped entries are now in new format (without custody)
+		let clipped_prefix = storage_prefix(b"Staking", b"ErasStakersClipped");
+		let mut clipped_in_new_format = 0u32;
+		let mut clipped_still_old = 0u32;
+
+		let mut current_key = clipped_prefix.to_vec();
+		while let Some(next_key) = sp_io::storage::next_key(&current_key) {
+			if !next_key.starts_with(&clipped_prefix) {
+				break;
+			}
+
+			if let Some(raw_value) = sp_io::storage::get(&next_key) {
+				// Try to decode as new format
+				if NewExposure::<T::AccountId, pallet_staking::BalanceOf<T>>::decode(
+					&mut &raw_value[..],
+				)
+				.is_ok()
+				{
+					clipped_in_new_format += 1;
+				} else {
+					clipped_still_old += 1;
+				}
+			}
+
+			current_key = next_key;
+		}
+
+		log::info!(
+			target: "runtime::migrations::cmix_id",
+			"Post-upgrade: ErasStakersClipped check - {} in new format, {} still in old format (of {} in old format before)",
+			clipped_in_new_format, clipped_still_old, clipped_in_old_format
+		);
+
+		ensure!(
+			clipped_still_old == 0 || clipped_in_new_format >= clipped_in_old_format,
+			"Some ErasStakersClipped entries were not rewritten to new format"
 		);
 
 		log::info!(
